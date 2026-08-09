@@ -40,15 +40,14 @@ enum FaceMetrics {
     /// Horizontal gap between adjacent elements.
     static let gap: CGFloat = 0.08
     static let colonWidth: CGFloat = 0.26
-    /// Just wide enough for "AM"/"PM" at 0.16u — slack here shows up as dead
-    /// space on the right edge, but too little wraps the label onto two lines.
-    static let meridiemWidth: CGFloat = 0.27
-    /// hour tens, hour ones, colon, minute tens, minute ones, meridiem.
-    private static let elementCount: CGFloat = 6
+    /// hour tens, hour ones, colon, minute tens, minute ones. The meridiem is
+    /// drawn as a badge inside the last card, so it claims no column of its own
+    /// and costs the layout nothing.
+    private static let elementCount: CGFloat = 5
 
     /// Total width of the laid-out face, in units.
     static let contentWidth: CGFloat =
-        4 * cardWidth + colonWidth + meridiemWidth + (elementCount - 1) * gap
+        4 * cardWidth + colonWidth + (elementCount - 1) * gap
 
     /// Total height: two half cards plus the sliver of spacing between them.
     static let contentHeight: CGFloat = 1.02
@@ -64,6 +63,38 @@ enum FaceMetrics {
         let available = CGSize(width: max(0, size.width - 2 * margin),
                                height: max(0, size.height - 2 * margin))
         return min(available.width / contentWidth, available.height / contentHeight)
+    }
+}
+
+/// The AM/PM indicator, tucked into the bottom-right corner of the last minute
+/// card. It deliberately claims no layout width of its own: that horizontal
+/// space is reserved for future features, and giving it back to the cards makes
+/// the digits noticeably larger.
+///
+/// Everything scales with `unit` so the badge keeps its proportions at any
+/// window size, with a small absolute floor on the type size so it stays
+/// readable when the window is near its minimum.
+struct MeridiemBadge: View {
+    let text: String
+    let unit: CGFloat
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: max(9, unit * 0.13), weight: .semibold, design: .rounded))
+            .foregroundStyle(Color(white: 0.58))
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, unit * 0.038)
+            .padding(.vertical, unit * 0.014)
+            .background(
+                RoundedRectangle(cornerRadius: unit * 0.032, style: .continuous)
+                    .fill(Color.white.opacity(0.07))
+            )
+            // Inset from the card's rounded corner; the digit's glyph sits well
+            // above this, so the badge never overlaps it.
+            .padding(unit * 0.05)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
@@ -84,19 +115,19 @@ struct ClockFaceView: View {
                     .frame(width: unit * FaceMetrics.colonWidth)
 
                 FlipDigit(value: face.minuteTens, size: unit).id("m1")
-                FlipDigit(value: face.minuteOnes, size: unit).id("m2")
 
-                Text(face.meridiem)
-                    .font(.system(size: unit * 0.16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(white: 0.55))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .frame(width: unit * FaceMetrics.meridiemWidth, alignment: .leading)
-                    .accessibilityHidden(true)
+                // The badge is layered over the finished card rather than
+                // inside it, so it stays put while the halves flip.
+                ZStack(alignment: .bottomTrailing) {
+                    FlipDigit(value: face.minuteOnes, size: unit).id("m2")
+                    MeridiemBadge(text: face.meridiem, unit: unit)
+                }
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
         .accessibilityElement(children: .ignore)
+        // `spokenLabel` carries the meridiem, which matters more now that the
+        // on-screen indicator is a small in-card badge.
         .accessibilityLabel(face.spokenLabel)
     }
 }

@@ -8,7 +8,7 @@ A lightweight macOS desktop flip clock. The clock face is the entire app: hours 
 
 ### Clock display
 - Split-flap ("flip clock") style hours and minutes, e.g. `10:07`, with a flip animation when a digit changes.
-- 12-hour display with a small AM/PM indicator (unobtrusive); seconds are not shown.
+- 12-hour display; seconds are not shown. The AM/PM indicator is a small, subtle badge tucked into the bottom-right corner of the last minute card — always in-card, never a column beside the digits. Keeping it out of the layout reserves the horizontal space for future features and lets the digits scale larger. It is included in the face's accessibility label, since it is visually small by design.
 - Digits use a monospaced/tabular look so the layout doesn't jitter.
 
 ### Window
