@@ -28,6 +28,11 @@ struct FlipClockApp: App {
                     settings.toggleAlwaysOnTop()
                 }
                 .keyboardShortcut("1", modifiers: .command)
+
+                // Discoverability only — the bare-space binding lives in
+                // HotkeyMonitor, since SwiftUI can't express an unmodified
+                // spacebar shortcut here without stealing it from text fields.
+                Button("Speak Time") { announcer.announce(Date()) }
             }
         }
 
@@ -47,6 +52,11 @@ struct FlipClockApp: App {
             }
         }
         engine.start()
-        hotkeys.start { settings.toggleAlwaysOnTop() }
+        // Spacebar speaks on demand regardless of the cadence setting — it's a
+        // "what time is it?" trigger, not an announcement.
+        hotkeys.start(
+            toggleAlwaysOnTop: { settings.toggleAlwaysOnTop() },
+            speakTime: { announcer.announce(Date()) }
+        )
     }
 }

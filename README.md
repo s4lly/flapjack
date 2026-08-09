@@ -12,6 +12,7 @@ A lightweight macOS flip clock.
   - every 15 minutes
   - custom minute interval
   - off
+- **Spacebar** speaks the current time on demand (app focused) — works even with the cadence set to off. Also in the menu as "Speak Time".
 
 Planned: cloud sync between the desktop app and a web backend (future to-do list and other features will build on it).
 

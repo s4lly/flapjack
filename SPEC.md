@@ -27,6 +27,7 @@ A lightweight macOS desktop flip clock. The clock face is the entire app: hours 
 - Speaks the current time aloud, e.g. "10:07 PM", exactly when the minute ticks over.
 - Cadence setting: Off (default) / Every hour (on the hour) / Every 15 minutes / Custom every N minutes (N = 1–180, announced when minute % N == 0, anchored to the hour).
 - Settings persist via UserDefaults (@AppStorage). Accessible from a small settings UI (menu or gear popover).
+- On-demand: with the app focused, the **spacebar** speaks the current time immediately, independent of the cadence setting (it works even when cadence is Off). Presses carrying ⌘/⌥/⌃ pass through so menu and system shortcuts aren't shadowed, as do presses while a text field is being edited. Rapid taps restart the utterance rather than queueing. Also available as the "Speak Time" menu command.
 
 ### Architecture notes
 - SwiftPM executable target, packaged into `dist/FlipClock.app` by `scripts/build-app.sh` (no Xcode required, ad-hoc codesigned if needed).
