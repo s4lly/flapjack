@@ -9,9 +9,9 @@ struct ContentView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
+            // No padding here: ClockFaceView sizes its own slim margin from the
+            // window, so the face fills whichever dimension binds.
             ClockFaceView(face: ClockFace(date: engine.now))
-                .padding(.horizontal, 18)
-                .padding(.vertical, 16)
 
             if settings.alwaysOnTop {
                 pinIndicator

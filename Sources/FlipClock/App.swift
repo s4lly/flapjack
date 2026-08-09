@@ -19,7 +19,9 @@ struct FlipClockApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 560, height: 220)
+        // Matches the face's own aspect ratio (plus the title bar strip) so a
+        // fresh window opens with the clock already filling it edge to edge.
+        .defaultSize(width: 560, height: 190)
         .commands {
             CommandGroup(after: .toolbar) {
                 Button(settings.alwaysOnTop ? "Turn Off Always on Top" : "Always on Top") {
