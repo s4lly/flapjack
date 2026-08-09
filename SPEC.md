@@ -29,6 +29,14 @@ A lightweight macOS desktop flip clock. The clock face is the entire app: hours 
 - Settings persist via UserDefaults (@AppStorage). Accessible from a small settings UI (menu or gear popover).
 - On-demand: with the app focused, the **spacebar** speaks the current time immediately, independent of the cadence setting (it works even when cadence is Off). Presses carrying ⌘/⌥/⌃ pass through so menu and system shortcuts aren't shadowed, as do presses while a text field is being edited. Rapid taps restart the utterance rather than queueing. Also available as the "Speak Time" menu command.
 
+### Events panel (EventKit)
+- Shows today's remaining calendar events beside the clock. Strictly opt-in: placement is a three-state setting — Off (default) / Column (beside the face) / Below (under the face) — cycled Off → Column → Below → Off.
+- Data comes from the macOS calendar store via EventKit, so any account the user has synced there is included (iCloud, Exchange, and Google via System Settings → Internet Accounts). Flapjack talks to no calendar service directly and does no networking.
+- Access is requested only when the user first turns the panel on (Off → Column), never at launch. The three app-level states are not-determined / granted / denied; write-only and restricted count as denied, since neither can read events. Denied is surfaced to the UI so it can explain how to grant access in System Settings, rather than showing an empty list.
+- The fetch window runs from "now" to the end of the current day, across all calendars. All-day events sort first, then everything else by start time.
+- Refresh triggers: the existing minute tick (so past events drop off as the clock advances), `EKEventStoreChanged` notifications (edits made in Calendar or an account sync), and system wake — the clock engine exposes a resync hook separate from the minute tick, because a wake is not a minute boundary and must not trigger a spoken announcement. Refresh is skipped entirely while placement is Off or access isn't granted.
+- Events reach the views as a plain `EventItem` value type (title, start/end, all-day flag, calendar name and colour). No EventKit type crosses into the UI, so a future backend-brokered event source can fill the same shape.
+
 ### Architecture notes
 - SwiftPM executable target, packaged into `dist/Flapjack.app` by `scripts/build-app.sh` (no Xcode required, ad-hoc codesigned if needed).
 - Keep state in a small observable model (`ClockModel`) ticking on minute boundaries; announcements driven by the same tick.

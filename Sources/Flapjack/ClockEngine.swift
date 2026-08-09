@@ -12,6 +12,12 @@ final class ClockEngine: ObservableObject {
     /// Called on every minute boundary (and never for the initial value).
     var onMinute: ((Date) -> Void)?
 
+    /// Called after the clock re-syncs following a system wake. Separate from
+    /// `onMinute` because a wake is not a minute boundary: announcements must
+    /// not fire, but time-dependent data (e.g. today's events) is stale and
+    /// needs a reload.
+    var onResync: ((Date) -> Void)?
+
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private var started = false
@@ -54,8 +60,10 @@ final class ClockEngine: ObservableObject {
     }
 
     private func resync() {
-        now = Date()
+        let date = Date()
+        now = date
         scheduleNextTick()
+        onResync?(date)
     }
 
     // `isolated` so the @MainActor-bound timer/observer can be torn down safely

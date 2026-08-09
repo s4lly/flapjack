@@ -20,6 +20,25 @@ enum AnnounceMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// Where today's calendar events sit relative to the clock face.
+/// `off` is the default: the events panel is opt-in, since showing it at all
+/// requires calendar permission.
+enum EventsPlacement: String, CaseIterable, Identifiable {
+    case off
+    case column
+    case below
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .off: return "Hidden"
+        case .column: return "Beside the clock"
+        case .below: return "Below the clock"
+        }
+    }
+}
+
 /// The app's model layer.
 ///
 /// Every settings/state mutation goes through this object rather than being
@@ -40,6 +59,9 @@ final class AppSettings: ObservableObject {
     @AppStorage("alwaysOnTop") private var alwaysOnTopRaw = false {
         willSet { objectWillChange.send() }
     }
+    @AppStorage("eventsPlacement") private var eventsPlacementRaw = EventsPlacement.off.rawValue {
+        willSet { objectWillChange.send() }
+    }
 
     // MARK: - Reads
 
@@ -52,6 +74,10 @@ final class AppSettings: ObservableObject {
     }
 
     var alwaysOnTop: Bool { alwaysOnTopRaw }
+
+    var eventsPlacement: EventsPlacement {
+        EventsPlacement(rawValue: eventsPlacementRaw) ?? .off
+    }
 
     // MARK: - Mutations
 
@@ -71,6 +97,20 @@ final class AppSettings: ObservableObject {
         setAlwaysOnTop(!alwaysOnTopRaw)
     }
 
+    func setEventsPlacement(_ placement: EventsPlacement) {
+        eventsPlacementRaw = placement.rawValue
+    }
+
+    /// Advances off → column → below → off.
+    /// Requesting calendar access is the caller's job — this object stays pure state.
+    func cycleEventsPlacement() {
+        switch eventsPlacement {
+        case .off: setEventsPlacement(.column)
+        case .column: setEventsPlacement(.below)
+        case .below: setEventsPlacement(.off)
+        }
+    }
+
     // MARK: - Bindings for SwiftUI controls (mutations still funnel through the setters)
 
     var announceModeBinding: Binding<AnnounceMode> {
@@ -79,6 +119,10 @@ final class AppSettings: ObservableObject {
 
     var customMinutesBinding: Binding<Int> {
         Binding(get: { self.customMinutes }, set: { self.setCustomMinutes($0) })
+    }
+
+    var eventsPlacementBinding: Binding<EventsPlacement> {
+        Binding(get: { self.eventsPlacement }, set: { self.setEventsPlacement($0) })
     }
 
     // MARK: - Derived behaviour
