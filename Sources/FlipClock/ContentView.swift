@@ -11,7 +11,11 @@ struct ContentView: View {
 
             // No padding here: ClockFaceView sizes its own slim margin from the
             // window, so the face fills whichever dimension binds.
-            ClockFaceView(face: ClockFace(date: engine.now))
+            if ProtoFlag.isEnabled {   // PROTOTYPE — see AMPMPlacementPrototype.swift
+                AMPMPlacementPrototypeView(face: ClockFace(date: engine.now))
+            } else {
+                ClockFaceView(face: ClockFace(date: engine.now))
+            }
 
             if settings.alwaysOnTop {
                 pinIndicator
