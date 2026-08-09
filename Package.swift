@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "FlipClock",
+    name: "Flapjack",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "FlipClock",
-            path: "Sources/FlipClock",
+            name: "Flapjack",
+            path: "Sources/Flapjack",
             swiftSettings: [.swiftLanguageMode(.v6)]
         )
     ]

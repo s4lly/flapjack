@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct FlipClockApp: App {
+struct FlapjackApp: App {
     @StateObject private var settings = AppSettings()
     @StateObject private var engine = ClockEngine()
     @StateObject private var windows = WindowController()

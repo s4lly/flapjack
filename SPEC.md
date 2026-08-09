@@ -1,4 +1,4 @@
-# FlipClock — v1 Spec
+# Flapjack — v1 Spec
 
 ## Product
 
@@ -30,7 +30,7 @@ A lightweight macOS desktop flip clock. The clock face is the entire app: hours 
 - On-demand: with the app focused, the **spacebar** speaks the current time immediately, independent of the cadence setting (it works even when cadence is Off). Presses carrying ⌘/⌥/⌃ pass through so menu and system shortcuts aren't shadowed, as do presses while a text field is being edited. Rapid taps restart the utterance rather than queueing. Also available as the "Speak Time" menu command.
 
 ### Architecture notes
-- SwiftPM executable target, packaged into `dist/FlipClock.app` by `scripts/build-app.sh` (no Xcode required, ad-hoc codesigned if needed).
+- SwiftPM executable target, packaged into `dist/Flapjack.app` by `scripts/build-app.sh` (no Xcode required, ad-hoc codesigned if needed).
 - Keep state in a small observable model (`ClockModel`) ticking on minute boundaries; announcements driven by the same tick.
 - Design for a future sync layer: settings/state mutations go through the model, not scattered view code, so a cloud-sync backend can be attached later. No networking in v1.
 

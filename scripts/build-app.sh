@@ -1,12 +1,12 @@
 #!/bin/bash
-# Builds FlipClock and assembles dist/FlipClock.app (no Xcode required).
+# Builds Flapjack and assembles dist/Flapjack.app (no Xcode required).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-APP_NAME="FlipClock"
-BUNDLE_ID="com.s4lly.flipclock"
+APP_NAME="Flapjack"
+BUNDLE_ID="com.s4lly.flapjack"
 APP="dist/${APP_NAME}.app"
 
 echo "==> swift build -c release"

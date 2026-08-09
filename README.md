@@ -1,4 +1,4 @@
-# FlipClock
+# Flapjack
 
 A lightweight macOS flip clock.
 
@@ -22,5 +22,5 @@ Requires macOS with Swift (Command Line Tools are enough — no Xcode needed).
 
 ```sh
 ./scripts/build-app.sh
-open dist/FlipClock.app
+open dist/Flapjack.app
 ```

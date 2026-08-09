@@ -37,7 +37,7 @@ final class WindowController: ObservableObject {
         window.isMovableByWindowBackground = true
         window.backgroundColor = NSColor.black
         window.minSize = NSSize(width: 280, height: 130)
-        window.setFrameAutosaveName("FlipClockMain")
+        window.setFrameAutosaveName("FlapjackMain")
     }
 
     func setFloating(_ on: Bool) {
