@@ -113,16 +113,16 @@ final class WindowController: ObservableObject {
     }
     func configure(_ w: NSWindow) {
         window = w
-        w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        w.collectionBehavior = [.fullScreenAuxiliary]
         w.setFrameAutosaveName("FlipClockMain")
     }
 }
 ```
 
 **`collectionBehavior`:**
-- `.canJoinAllSpaces` — clock follows you across every Space. This is what you want for a desktop clock.
-- `.fullScreenAuxiliary` — lets it float *over* other apps' fullscreen windows. Essential for an always-on-top clock; without it the clock vanishes when you fullscreen something.
-- Avoid `.moveToActiveSpace` (conflicts with `canJoinAllSpaces`).
+- `.canJoinAllSpaces` — clock follows you across every Space. **Not used here:** FlipClock deliberately stays on the single Space it was opened on (see SPEC "Always-on-top"); swiping to another desktop should leave it behind.
+- `.fullScreenAuxiliary` — lets it float *over* fullscreen windows. Kept, since it only affects fullscreen overlay, not Space-following; without it the clock vanishes when you fullscreen something.
+- Avoid `.moveToActiveSpace` — that is another form of Space-following, which we don't want.
 - `.stationary` if you don't want it sliding during Exposé.
 
 Use `.floating` rather than `.popUpMenu`/`.screenSaver` — higher levels draw over menus and system UI and feel broken.
@@ -427,7 +427,7 @@ For settings UI, `Settings { SettingsView() }` as a second `Scene` gives the sta
 |---|---|
 | Bundle | `swift build -c release` + hand-rolled `.app` + `codesign -s -` (sealed, stable `--identifier`) |
 | Entry point | SwiftUI `@main App` in **`App.swift`**; no `NSPrincipalClass`; no `LSUIElement` |
-| Always on top | `NSViewRepresentable` accessor → `.floating` + `[.canJoinAllSpaces, .fullScreenAuxiliary]` |
+| Always on top | `NSViewRepresentable` accessor → `.floating` + `[.fullScreenAuxiliary]` (single-Space; no `.canJoinAllSpaces`) |
 | Cmd+1 | `NSEvent.addLocalMonitorForEvents`, keyCodes **18** and **83**, return `nil` to consume |
 | Speech | `AVSpeechSynthesizer` held as a stored property, highest-quality en-US voice, no entitlements |
 | Flip UI | Two half-cards, sequential `.easeIn`/`.easeOut` `rotation3DEffect`, `anchor: .bottom`/`.top` |

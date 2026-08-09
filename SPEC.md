@@ -18,6 +18,7 @@ A lightweight macOS desktop flip clock. The clock face is the entire app: hours 
 
 ### Always-on-top
 - `⌘1` toggles the window between normal level and floating (above all windows).
+- The window does **not** follow the user across Spaces: it stays on the desktop where it lives, and floating applies only on that Space. Swiping to another desktop leaves the clock behind.
 - Must work with both the main-row `1` and the numeric-keypad `1`.
 - In-app shortcut is sufficient for v1 (app focused). Subtle visual indicator of the pinned state (e.g. small pin glyph).
 - Also toggleable from the app menu.
