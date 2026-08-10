@@ -78,6 +78,18 @@ final class AppSettings: ObservableObject {
     @AppStorage("showCadenceFill") private var showCadenceFillRaw = true {
         willSet { objectWillChange.send() }
     }
+    /// The two ways a cadence boundary can be conveyed, independently
+    /// switchable. Voice defaults on (it is what the cadence has always meant)
+    /// and notification defaults off, since turning it on is what triggers the
+    /// system permission prompt — an app that asks unbidden gets a reflexive
+    /// "Don't Allow". Both off is allowed: the cadence fill still counts down,
+    /// and nothing fires at the boundary.
+    @AppStorage("speakOnCadence") private var speakOnCadenceRaw = true {
+        willSet { objectWillChange.send() }
+    }
+    @AppStorage("notifyOnCadence") private var notifyOnCadenceRaw = false {
+        willSet { objectWillChange.send() }
+    }
     /// `AVSpeechSynthesisVoice.identifier` of the voice to announce with. Empty
     /// means automatic — the best installed voice, recomputed each time we
     /// speak. Stored as the identifier rather than an index so that installing
@@ -101,6 +113,10 @@ final class AppSettings: ObservableObject {
     var showCadenceFill: Bool { showCadenceFillRaw }
 
     var voiceIdentifier: String { voiceIdentifierRaw }
+
+    var speakOnCadence: Bool { speakOnCadenceRaw }
+
+    var notifyOnCadence: Bool { notifyOnCadenceRaw }
 
     /// The announcement timetable implied by the current settings. Recomputed on
     /// read, so a cadence change retargets the countdown on the very next tick.
@@ -137,6 +153,16 @@ final class AppSettings: ObservableObject {
 
     func setShowCadenceFill(_ on: Bool) {
         showCadenceFillRaw = on
+    }
+
+    func setSpeakOnCadence(_ on: Bool) {
+        speakOnCadenceRaw = on
+    }
+
+    /// Requesting notification permission is the caller's job — this object
+    /// stays pure state, exactly as it does for the calendar panel.
+    func setNotifyOnCadence(_ on: Bool) {
+        notifyOnCadenceRaw = on
     }
 
     /// `""` restores automatic voice selection.

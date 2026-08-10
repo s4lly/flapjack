@@ -7,11 +7,14 @@ A lightweight macOS flip clock.
 - Classic split-flap clock showing hours and minutes, prominently.
 - Freely resizable window — the clock scales to fit, and rearranges itself to `HH` stacked over `MM` (dot separator between) whenever that makes the digits bigger than `HH:MM` across.
 - **⌘1** (main row or numeric keypad) toggles always-on-top (window floats above all other windows).
-- Spoken time announcements ("ten oh-seven PM") with configurable cadence:
+- Time announcements on a configurable cadence:
   - every hour
   - every 15 minutes
   - custom minute interval
   - off
+- **Two ways to hear about it, each switchable on its own** — the "Convey with" toggles in Settings. **Voice** speaks the time aloud ("ten oh-seven PM"); **Notification** posts it as a macOS notification. Turn on either, both, or neither. Notifications are off until you ask for them — flipping the toggle on is what requests permission.
+  - Each time check replaces the last, so Notification Center never fills up with stale ones.
+  - Whether the notification lingers until you dismiss it or fades after a few seconds is **your** setting, not the app's: **System Settings → Notifications → Flapjack → Alert Style**, "Persistent" vs "Temporary" (called "Alerts" and "Banners" before macOS 26). Settings has a button that takes you straight to that pane.
 - **Voice picker** in Settings, with a **Test** button to hear the current time straight away. "Automatic" uses the best voice installed on your Mac.
   - Macs ship with only *compact* voices, which sound robotic. For much better audio, download an enhanced or premium voice — **System Settings → Accessibility → Spoken Content** (called **Read & Speak** on macOS 26) **→ System Voice → Manage Voices**; Ava and Zoe are the best for US English. Settings offers an "Open System Settings…" button that takes you straight there whenever nothing better than a compact voice is installed. New voices show up in the picker as soon as the download finishes — no restart.
 - A **cadence countdown fill** behind the clock: a warm amber panel that fills the face when the time is announced and then drains right to left as the next announcement approaches, so the wait is visible at a glance. Only shown when a cadence is set; switch it off with "Show cadence fill" in Settings.

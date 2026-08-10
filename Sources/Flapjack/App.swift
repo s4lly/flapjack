@@ -7,6 +7,8 @@ struct FlapjackApp: App {
     @StateObject private var windows = WindowController()
     @StateObject private var events = EventsService()
 
+    @StateObject private var notifier = NotificationAnnouncer()
+
     private let announcer = Announcer()
     private let hotkeys = HotkeyMonitor()
 
@@ -45,7 +47,7 @@ struct FlapjackApp: App {
         }
 
         Settings {
-            SettingsView(announcer: announcer)
+            SettingsView(announcer: announcer, notifier: notifier)
                 .environmentObject(settings)
         }
     }
@@ -57,8 +59,13 @@ struct FlapjackApp: App {
         engine.onMinute = { date in
             MainActor.assumeIsolated {
                 refreshEvents(at: date)
+                // One boundary, two independent convey methods: the schedule
+                // decides *when*, the toggles decide *how*. With both off the
+                // boundary passes silently — the cadence fill still counts down
+                // to it, which is a deliberate (if quiet) configuration.
                 guard settings.shouldAnnounce(at: date) else { return }
-                announcer.announce(date)
+                if settings.speakOnCadence { announcer.announce(date) }
+                if settings.notifyOnCadence { notifier.notify(date) }
             }
         }
         // Timers don't fire during sleep, so a wake can land far past the last
