@@ -66,6 +66,11 @@ struct FlapjackApp: App {
             MainActor.assumeIsolated { refreshEvents(at: date) }
         }
         engine.start()
+        // A panel restored as visible needs access before its first fetch;
+        // requestAccessIfNeeded is a no-op once the user has decided.
+        if settings.eventsPlacement != .off {
+            events.requestAccessIfNeeded()
+        }
         refreshEvents(at: Date())
         // Spacebar speaks on demand regardless of the cadence setting — it's a
         // "what time is it?" trigger, not an announcement.
