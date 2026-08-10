@@ -403,7 +403,9 @@ private struct DayTimelineView: View {
                 }
                 .frame(width: contentSize.width, height: contentSize.height)
             }
-            .scrollIndicators(.hidden)
+            // .never, not .hidden: .hidden still shows a bar when the system
+            // "Show scroll bars: Always" preference requests one.
+            .scrollIndicators(.never)
             .onAppear { revealNow(proxy) }
             // Placement flips and window resizes both land here; the panel is a
             // glance surface, so it re-centres on "now" rather than preserving
