@@ -31,6 +31,12 @@ struct FlapjackApp: App {
                 }
                 .keyboardShortcut("1", modifiers: .command)
 
+                // Title carries the current state, since the command cycles
+                // rather than toggles. The key equivalent covers the main-row
+                // 2 only; HotkeyMonitor picks up the keypad one.
+                Button(eventsMenuTitle) { cycleEventsPlacement() }
+                    .keyboardShortcut("2", modifiers: .command)
+
                 // Discoverability only — the bare-space binding lives in
                 // HotkeyMonitor, since SwiftUI can't express an unmodified
                 // spacebar shortcut here without stealing it from text fields.
@@ -65,8 +71,17 @@ struct FlapjackApp: App {
         // "what time is it?" trigger, not an announcement.
         hotkeys.start(
             toggleAlwaysOnTop: { settings.toggleAlwaysOnTop() },
+            cycleEventsPlacement: { cycleEventsPlacement() },
             speakTime: { announcer.announce(Date()) }
         )
+    }
+
+    private var eventsMenuTitle: String {
+        switch settings.eventsPlacement {
+        case .off: return "Events: Off"
+        case .column: return "Events: Right Column"
+        case .below: return "Events: Below"
+        }
     }
 
     /// Only fetches when the panel is actually visible and readable — a hidden

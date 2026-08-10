@@ -6,18 +6,23 @@ import AppKit
 @MainActor
 final class HotkeyMonitor {
 
-    /// Carbon `kVK_ANSI_1`, `kVK_ANSI_Keypad1`, `kVK_Space`.
+    /// Carbon `kVK_ANSI_1`, `kVK_ANSI_Keypad1`, `kVK_ANSI_2`,
+    /// `kVK_ANSI_Keypad2`, `kVK_Space`.
     private static let mainRowOne: UInt16 = 18
     private static let keypadOne: UInt16 = 83
+    private static let mainRowTwo: UInt16 = 19
+    private static let keypadTwo: UInt16 = 84
     private static let space: UInt16 = 49
 
     private var monitor: Any?
 
     /// - Parameters:
     ///   - toggleAlwaysOnTop: fired by ⌘1 (main row or keypad).
+    ///   - cycleEventsPlacement: fired by ⌘2 (main row or keypad).
     ///   - speakTime: fired by an unmodified spacebar press.
     func start(
         toggleAlwaysOnTop: @escaping @MainActor () -> Void,
+        cycleEventsPlacement: @escaping @MainActor () -> Void,
         speakTime: @escaping @MainActor () -> Void
     ) {
         guard monitor == nil else { return }
@@ -27,6 +32,10 @@ final class HotkeyMonitor {
             let handled = MainActor.assumeIsolated { () -> Bool in
                 if Self.matchesAlwaysOnTop(event) {
                     toggleAlwaysOnTop()
+                    return true
+                }
+                if Self.matchesCycleEvents(event) {
+                    cycleEventsPlacement()
                     return true
                 }
                 if Self.matchesSpeakTime(event), !Self.isEditingText() {
@@ -48,6 +57,13 @@ final class HotkeyMonitor {
     /// exactly ⌘ or ⌘ + numeric pad — but nothing else.
     static func matchesAlwaysOnTop(_ event: NSEvent) -> Bool {
         guard event.keyCode == mainRowOne || event.keyCode == keypadOne else { return false }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        return flags == .command || flags == [.command, .numericPad]
+    }
+
+    /// ⌘2, main row or keypad — same modifier rules as ⌘1.
+    static func matchesCycleEvents(_ event: NSEvent) -> Bool {
+        guard event.keyCode == mainRowTwo || event.keyCode == keypadTwo else { return false }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         return flags == .command || flags == [.command, .numericPad]
     }

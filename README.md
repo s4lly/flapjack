@@ -12,6 +12,7 @@ A lightweight macOS flip clock.
   - every 15 minutes
   - custom minute interval
   - off
+- Today's remaining calendar events beside the clock (EventKit — any account synced to macOS Calendar). **⌘2** (main row or numeric keypad) cycles the panel off → right column → below the clock; the clock rescales to the space that's left. Calendar access is asked for only when you first turn the panel on.
 - **Spacebar** speaks the current time on demand (app focused) — works even with the cadence set to off. Also in the menu as "Speak Time".
 
 Planned: cloud sync between the desktop app and a web backend (future to-do list and other features will build on it).
