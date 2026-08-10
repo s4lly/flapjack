@@ -5,7 +5,7 @@ A lightweight macOS flip clock.
 ## Features
 
 - Classic split-flap clock showing hours and minutes, prominently.
-- Freely resizable window — the clock scales to fit.
+- Freely resizable window — the clock scales to fit, and rearranges itself to `HH` stacked over `MM` (dot separator between) whenever that makes the digits bigger than `HH:MM` across.
 - **⌘1** (main row or numeric keypad) toggles always-on-top (window floats above all other windows).
 - Spoken time announcements ("ten oh-seven PM") with configurable cadence:
   - every hour

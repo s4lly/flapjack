@@ -34,35 +34,69 @@ struct ClockFace: Equatable {
 /// height of one flip card). They are declared here rather than inlined so the
 /// scale calculation can be derived from the same numbers the views draw with —
 /// otherwise the face silently underfills whenever the two drift apart.
-enum FaceMetrics {
+///
+/// There are two arrangements of the same four cards — `horizontal` (`HH:MM` on
+/// one row) and `stacked` (`HH` over `MM`) — and each derives its own unit from
+/// its own content aspect, so the choice between them is simply "whichever draws
+/// the digits bigger in this region".
+struct FaceMetrics {
     /// Width of a single flip card (see `HalfCard`).
-    static let cardWidth: CGFloat = 0.64
+    var cardWidth: CGFloat = 0.64
     /// Horizontal gap between adjacent elements.
-    static let gap: CGFloat = 0.08
-    static let colonWidth: CGFloat = 0.26
-    /// hour tens, hour ones, colon, minute tens, minute ones. The meridiem is
-    /// drawn as a badge inside the last card, so it claims no column of its own
-    /// and costs the layout nothing.
-    private static let elementCount: CGFloat = 5
+    var gap: CGFloat = 0.08
+    var colonWidth: CGFloat = 0.26
+    /// Gutter between the hour row and the minute row; the horizontal layout
+    /// has no second row, so it is zero there.
+    var rowGap: CGFloat = 0
+    var rows: CGFloat = 1
 
-    /// Total width of the laid-out face, in units.
-    static let contentWidth: CGFloat =
-        4 * cardWidth + colonWidth + (elementCount - 1) * gap
-
-    /// Total height: two half cards plus the sliver of spacing between them.
-    static let contentHeight: CGFloat = 1.02
+    /// Height of one card: two half cards plus the sliver of spacing between
+    /// them.
+    static let cardHeight: CGFloat = 1.02
 
     /// Breathing room left around the face, as a fraction of the smaller
-    /// window dimension.
+    /// region dimension.
     static let marginFraction: CGFloat = 0.03
 
-    /// The card height that makes the face fill `size` as tightly as the
-    /// content's own aspect ratio allows.
-    static func unit(fitting size: CGSize) -> CGFloat {
-        let margin = min(size.width, size.height) * marginFraction
+    /// `HH:MM` across one row.
+    static let horizontal = FaceMetrics()
+
+    /// `HH` over `MM`, with the colon's two dots turned on their side into the
+    /// gutter. The gutter is wide enough that the dots crowd neither row.
+    static let stacked = FaceMetrics(rowGap: 0.26, rows: 2)
+
+    var isStacked: Bool { rows > 1 }
+
+    /// Horizontal: four cards plus the colon, with four gaps. Stacked: two
+    /// cards and one gap. The meridiem is drawn as a badge inside the last card
+    /// either way, so it claims no column of its own and costs nothing.
+    var contentWidth: CGFloat {
+        isStacked ? 2 * cardWidth + gap : 4 * cardWidth + colonWidth + 4 * gap
+    }
+
+    var contentHeight: CGFloat { rows * Self.cardHeight + (rows - 1) * rowGap }
+
+    /// The card height that makes this arrangement fill `size` as tightly as
+    /// its own aspect ratio allows.
+    func unit(fitting size: CGSize) -> CGFloat {
+        let margin = min(size.width, size.height) * Self.marginFraction
         let available = CGSize(width: max(0, size.width - 2 * margin),
                                height: max(0, size.height - 2 * margin))
         return min(available.width / contentWidth, available.height / contentHeight)
+    }
+
+    /// The arrangement that makes the digits largest in `size`. Comparing units
+    /// rather than testing the region's aspect against a threshold is what makes
+    /// this correct everywhere: the crossover (~1.47 for these proportions) falls
+    /// out of the comparison, and the degenerate bands — where both layouts are
+    /// bound by the same dimension — resolve on their own.
+    static func best(fitting size: CGSize) -> FaceMetrics {
+        stacked.unit(fitting: size) > horizontal.unit(fitting: size) ? stacked : horizontal
+    }
+
+    /// The unit the face will actually be drawn at in `size`.
+    static func unit(fitting size: CGSize) -> CGFloat {
+        best(fitting: size).unit(fitting: size)
     }
 }
 
@@ -98,29 +132,23 @@ struct MeridiemBadge: View {
     }
 }
 
-/// The clock itself, scaled to whatever space it is given.
+/// The clock itself, scaled to whatever space it is given, and arranged the way
+/// that space suits: `HH:MM` across when the region is wide, `HH` over `MM` when
+/// it is tall or narrow. The switch is pure geometry, so it happens live as the
+/// window resizes or the events divider is dragged, with or without the panel.
 struct ClockFaceView: View {
     let face: ClockFace
 
     var body: some View {
         GeometryReader { geo in
-            let unit = FaceMetrics.unit(fitting: geo.size)
-            HStack(alignment: .center, spacing: unit * FaceMetrics.gap) {
-                FlipDigit(value: face.hourTens, size: unit).id("h1")
-                FlipDigit(value: face.hourOnes, size: unit).id("h2")
+            let metrics = FaceMetrics.best(fitting: geo.size)
+            let unit = metrics.unit(fitting: geo.size)
 
-                Text(":")
-                    .font(.system(size: unit * 0.42, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(white: 0.55))
-                    .frame(width: unit * FaceMetrics.colonWidth)
-
-                FlipDigit(value: face.minuteTens, size: unit).id("m1")
-
-                // The badge is layered over the finished card rather than
-                // inside it, so it stays put while the halves flip.
-                ZStack(alignment: .bottomTrailing) {
-                    FlipDigit(value: face.minuteOnes, size: unit).id("m2")
-                    MeridiemBadge(text: face.meridiem, unit: unit)
+            Group {
+                if metrics.isStacked {
+                    stacked(unit: unit, metrics: metrics)
+                } else {
+                    across(unit: unit, metrics: metrics)
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
@@ -129,5 +157,57 @@ struct ClockFaceView: View {
         // `spokenLabel` carries the meridiem, which matters more now that the
         // on-screen indicator is a small in-card badge.
         .accessibilityLabel(face.spokenLabel)
+    }
+
+    private func across(unit: CGFloat, metrics: FaceMetrics) -> some View {
+        HStack(alignment: .center, spacing: unit * metrics.gap) {
+            hours(unit: unit)
+
+            Text(":")
+                .font(.system(size: unit * 0.42, weight: .bold, design: .monospaced))
+                .foregroundStyle(Color(white: 0.55))
+                .frame(width: unit * metrics.colonWidth)
+
+            minutes(unit: unit)
+        }
+    }
+
+    private func stacked(unit: CGFloat, metrics: FaceMetrics) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: unit * metrics.gap) { hours(unit: unit) }
+            dots(unit: unit, metrics: metrics)
+            HStack(spacing: unit * metrics.gap) { minutes(unit: unit) }
+        }
+    }
+
+    /// The colon's two dots, turned on their side into the row gutter — the
+    /// stacked rows read as two pairs on their own, but the dots keep the face
+    /// recognisably a clock rather than a pair of numbers.
+    private func dots(unit: CGFloat, metrics: FaceMetrics) -> some View {
+        HStack(spacing: unit * 0.09) {
+            Circle().frame(width: unit * 0.055, height: unit * 0.055)
+            Circle().frame(width: unit * 0.055, height: unit * 0.055)
+        }
+        .foregroundStyle(Color(white: 0.55))
+        .frame(height: unit * metrics.rowGap)
+    }
+
+    @ViewBuilder
+    private func hours(unit: CGFloat) -> some View {
+        FlipDigit(value: face.hourTens, size: unit).id("h1")
+        FlipDigit(value: face.hourOnes, size: unit).id("h2")
+    }
+
+    @ViewBuilder
+    private func minutes(unit: CGFloat) -> some View {
+        FlipDigit(value: face.minuteTens, size: unit).id("m1")
+
+        // The badge is layered over the finished card rather than inside it, so
+        // it stays put while the halves flip. It rides the last minute card in
+        // both layouts — bottom-right of the bottom row when stacked.
+        ZStack(alignment: .bottomTrailing) {
+            FlipDigit(value: face.minuteOnes, size: unit).id("m2")
+            MeridiemBadge(text: face.meridiem, unit: unit)
+        }
     }
 }
