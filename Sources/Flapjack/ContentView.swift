@@ -84,7 +84,11 @@ struct ContentView: View {
             if showsCadenceFill {
                 CadenceFillView(schedule: settings.cadenceSchedule)
             }
-            ClockFaceView(face: ClockFace(date: engine.now))
+            if StackProtoFlag.isEnabled {   // PROTOTYPE — see StackedFacePrototype.swift
+                StackedFacePrototypeView(face: ClockFace(date: engine.now))
+            } else {
+                ClockFaceView(face: ClockFace(date: engine.now))
+            }
         }
     }
 
