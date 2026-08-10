@@ -76,8 +76,22 @@ struct ContentView: View {
                                         fraction: settings.eventsFraction(for: .below))
     }
 
+    /// The face, over the cadence countdown backdrop. The backdrop is a sibling
+    /// inside the face's own region, so it never spills onto the events panel or
+    /// the divider — whatever space the face is handed is exactly what it fills.
     private var face: some View {
-        ClockFaceView(face: ClockFace(date: engine.now))
+        ZStack {
+            if showsCadenceFill {
+                CadenceFillView(schedule: settings.cadenceSchedule)
+            }
+            ClockFaceView(face: ClockFace(date: engine.now))
+        }
+    }
+
+    /// Nothing to count down to with the cadence off, and the user can switch
+    /// the backdrop off outright.
+    private var showsCadenceFill: Bool {
+        settings.showCadenceFill && settings.announceMode != .off
     }
 
     private var panelState: EventsPanelState {

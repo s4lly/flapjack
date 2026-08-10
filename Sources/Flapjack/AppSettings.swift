@@ -72,6 +72,12 @@ final class AppSettings: ObservableObject {
     @AppStorage("eventsBelowFraction") private var eventsBelowFractionRaw = 0.30 {
         willSet { objectWillChange.send() }
     }
+    /// The countdown-to-next-announcement backdrop. On by default: it only ever
+    /// appears when a cadence is set, so it costs nothing for the default (off)
+    /// cadence, and a user who wants a bare black face can switch it off.
+    @AppStorage("showCadenceFill") private var showCadenceFillRaw = true {
+        willSet { objectWillChange.send() }
+    }
 
     // MARK: - Reads
 
@@ -84,6 +90,14 @@ final class AppSettings: ObservableObject {
     }
 
     var alwaysOnTop: Bool { alwaysOnTopRaw }
+
+    var showCadenceFill: Bool { showCadenceFillRaw }
+
+    /// The announcement timetable implied by the current settings. Recomputed on
+    /// read, so a cadence change retargets the countdown on the very next tick.
+    var cadenceSchedule: CadenceSchedule {
+        CadenceSchedule(mode: announceMode, customMinutes: customMinutes)
+    }
 
     var eventsPlacement: EventsPlacement {
         EventsPlacement(rawValue: eventsPlacementRaw) ?? .off
@@ -110,6 +124,10 @@ final class AppSettings: ObservableObject {
 
     func setAlwaysOnTop(_ on: Bool) {
         alwaysOnTopRaw = on
+    }
+
+    func setShowCadenceFill(_ on: Bool) {
+        showCadenceFillRaw = on
     }
 
     func toggleAlwaysOnTop() {
@@ -159,17 +177,18 @@ final class AppSettings: ObservableObject {
     // MARK: - Derived behaviour
 
     /// Whether the clock should speak at this minute boundary.
-    /// Custom intervals are anchored to the hour (minute-of-hour modulo N).
+    /// Custom intervals are anchored to the hour (minute-of-hour modulo N) —
+    /// `CadenceSchedule` owns that rule so the countdown visual and the spoken
+    /// announcement can never disagree about where a boundary is.
     func shouldAnnounce(at date: Date, calendar: Calendar = .current) -> Bool {
         guard let minute = calendar.dateComponents([.minute], from: date).minute else { return false }
-        switch announceMode {
-        case .off: return false
-        case .hourly: return minute == 0
-        case .everyQuarter: return minute % 15 == 0
-        case .custom:
-            let n = customMinutes
-            return n > 0 && minute % n == 0
-        }
+        return cadenceSchedule.isBoundary(minuteOfHour: minute)
+    }
+
+    /// Fraction of the wait to the next announcement still ahead, 0…1, or `nil`
+    /// when no cadence is set.
+    func cadenceFractionRemaining(at date: Date, calendar: Calendar = .current) -> Double? {
+        cadenceSchedule.fractionRemaining(at: date, calendar: calendar)
     }
 
     private static func clampCustomMinutes(_ value: Int) -> Int {
