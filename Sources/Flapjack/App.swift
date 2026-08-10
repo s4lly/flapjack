@@ -45,7 +45,7 @@ struct FlapjackApp: App {
         }
 
         Settings {
-            SettingsView()
+            SettingsView(announcer: announcer)
                 .environmentObject(settings)
         }
     }
@@ -53,6 +53,7 @@ struct FlapjackApp: App {
     /// Wires the model layer together once the window exists.
     @MainActor
     private func bootstrap() {
+        announcer.voiceIdentifier = { settings.voiceIdentifier }
         engine.onMinute = { date in
             MainActor.assumeIsolated {
                 refreshEvents(at: date)

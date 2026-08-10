@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import OSLog
 
 /// Speaks the time aloud. The synthesizer must be a stored property — a local
 /// one deallocates and cuts the utterance off silently.
@@ -7,6 +8,7 @@ import Foundation
 final class Announcer {
 
     private let synth = AVSpeechSynthesizer()
+    private let log = Logger(subsystem: "com.s4lly.flapjack", category: "speech")
 
     private let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -22,13 +24,11 @@ final class Announcer {
         return f
     }()
 
-    /// Highest-quality installed en-US voice, falling back to the system default.
-    private lazy var voice: AVSpeechSynthesisVoice? = {
-        AVSpeechSynthesisVoice.speechVoices()
-            .filter { $0.language.hasPrefix("en-US") }
-            .max { $0.quality.rawValue < $1.quality.rawValue }
-            ?? AVSpeechSynthesisVoice(language: "en-US")
-    }()
+    /// The user's chosen voice identifier, or `""` for automatic. A closure
+    /// rather than a stored value so the announcer stays independent of
+    /// `AppSettings` and always reads the *current* choice — the setting can
+    /// change between announcements, and so can the set of installed voices.
+    var voiceIdentifier: @MainActor () -> String = { "" }
 
     func announce(_ date: Date) {
         speak(Self.phrase(for: date, time: timeFormatter, hour: hourFormatter))
@@ -36,8 +36,11 @@ final class Announcer {
 
     func speak(_ text: String) {
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = voice
+        // Resolved per utterance, not cached: voices can be downloaded (or the
+        // chosen one removed) while the app runs.
+        utterance.voice = VoiceCatalog.resolvedVoice(identifier: voiceIdentifier())
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        log.info("speaking \"\(text, privacy: .public)\" with \(utterance.voice?.identifier ?? "system default", privacy: .public)")
         synth.stopSpeaking(at: .immediate)   // never stack announcements
         synth.speak(utterance)
     }

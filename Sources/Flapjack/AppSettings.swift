@@ -78,6 +78,13 @@ final class AppSettings: ObservableObject {
     @AppStorage("showCadenceFill") private var showCadenceFillRaw = true {
         willSet { objectWillChange.send() }
     }
+    /// `AVSpeechSynthesisVoice.identifier` of the voice to announce with. Empty
+    /// means automatic — the best installed voice, recomputed each time we
+    /// speak. Stored as the identifier rather than an index so that installing
+    /// or removing voices can't silently repoint the choice at another voice.
+    @AppStorage("voiceIdentifier") private var voiceIdentifierRaw = "" {
+        willSet { objectWillChange.send() }
+    }
 
     // MARK: - Reads
 
@@ -92,6 +99,8 @@ final class AppSettings: ObservableObject {
     var alwaysOnTop: Bool { alwaysOnTopRaw }
 
     var showCadenceFill: Bool { showCadenceFillRaw }
+
+    var voiceIdentifier: String { voiceIdentifierRaw }
 
     /// The announcement timetable implied by the current settings. Recomputed on
     /// read, so a cadence change retargets the countdown on the very next tick.
@@ -128,6 +137,11 @@ final class AppSettings: ObservableObject {
 
     func setShowCadenceFill(_ on: Bool) {
         showCadenceFillRaw = on
+    }
+
+    /// `""` restores automatic voice selection.
+    func setVoiceIdentifier(_ identifier: String) {
+        voiceIdentifierRaw = identifier
     }
 
     func toggleAlwaysOnTop() {
@@ -172,6 +186,10 @@ final class AppSettings: ObservableObject {
 
     var eventsPlacementBinding: Binding<EventsPlacement> {
         Binding(get: { self.eventsPlacement }, set: { self.setEventsPlacement($0) })
+    }
+
+    var voiceIdentifierBinding: Binding<String> {
+        Binding(get: { self.voiceIdentifier }, set: { self.setVoiceIdentifier($0) })
     }
 
     // MARK: - Derived behaviour
