@@ -10,23 +10,41 @@ struct ContentView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            // The panel claims its space first; whatever is left is handed to
-            // the face, which sizes its own slim margin from that. With the
-            // panel off the face gets the whole window, exactly as before.
+            // The panel claims its space first; whatever is left (less the
+            // divider gutter) is handed to the face, which sizes its own slim
+            // margin from that. With the panel off the face gets the whole
+            // window, exactly as before. The share comes from the user's stored
+            // fraction, which the divider moves live.
             GeometryReader { geo in
                 switch settings.eventsPlacement {
                 case .off:
                     face
                 case .column:
-                    let width = EventsPanelMetrics.columnWidth(inWindowWidth: geo.size.width)
+                    let width = columnWidth(in: geo.size)
                     HStack(spacing: 0) {
-                        face.frame(width: max(0, geo.size.width - width))
+                        face.frame(width: max(0, geo.size.width - width - EventsPanelMetrics.dividerThickness))
+                        SplitDivider(seam: .vertical) {
+                            columnWidth(in: geo.size)
+                        } onMove: { wanted in
+                            settings.setEventsFraction(
+                                EventsPanelMetrics.columnFraction(forWidth: wanted,
+                                                                  inWindowWidth: geo.size.width),
+                                for: .column)
+                        }
                         EventsColumn(state: panelState, width: width, now: engine.now)
                     }
                 case .below:
-                    let height = EventsPanelMetrics.stripHeight(inWindowHeight: geo.size.height)
+                    let height = stripHeight(in: geo.size)
                     VStack(spacing: 0) {
-                        face.frame(height: max(0, geo.size.height - height))
+                        face.frame(height: max(0, geo.size.height - height - EventsPanelMetrics.dividerThickness))
+                        SplitDivider(seam: .horizontal) {
+                            stripHeight(in: geo.size)
+                        } onMove: { wanted in
+                            settings.setEventsFraction(
+                                EventsPanelMetrics.stripFraction(forHeight: wanted,
+                                                                 inWindowHeight: geo.size.height),
+                                for: .below)
+                        }
                         EventsStrip(state: panelState, height: height, now: engine.now)
                     }
                 }
@@ -46,6 +64,16 @@ struct ContentView: View {
         .onChange(of: settings.alwaysOnTop) { _, on in
             windows.setFloating(on)
         }
+    }
+
+    private func columnWidth(in size: CGSize) -> CGFloat {
+        EventsPanelMetrics.columnWidth(inWindowWidth: size.width,
+                                       fraction: settings.eventsFraction(for: .column))
+    }
+
+    private func stripHeight(in size: CGSize) -> CGFloat {
+        EventsPanelMetrics.stripHeight(inWindowHeight: size.height,
+                                        fraction: settings.eventsFraction(for: .below))
     }
 
     private var face: some View {

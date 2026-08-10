@@ -62,6 +62,16 @@ final class AppSettings: ObservableObject {
     @AppStorage("eventsPlacement") private var eventsPlacementRaw = EventsPlacement.off.rawValue {
         willSet { objectWillChange.send() }
     }
+    /// Where the user has parked the divider, one fraction per placement: the
+    /// two layouts split different axes, so a single number would jump the panel
+    /// every time the placement changed. Defaults match the fixed shares the
+    /// panel shipped with before the divider existed.
+    @AppStorage("eventsColumnFraction") private var eventsColumnFractionRaw = 0.34 {
+        willSet { objectWillChange.send() }
+    }
+    @AppStorage("eventsBelowFraction") private var eventsBelowFractionRaw = 0.30 {
+        willSet { objectWillChange.send() }
+    }
 
     // MARK: - Reads
 
@@ -77,6 +87,15 @@ final class AppSettings: ObservableObject {
 
     var eventsPlacement: EventsPlacement {
         EventsPlacement(rawValue: eventsPlacementRaw) ?? .off
+    }
+
+    /// The panel's share of the window for the placement given. `.off` has no
+    /// divider, so it reports the column default rather than a special case.
+    func eventsFraction(for placement: EventsPlacement) -> CGFloat {
+        switch placement {
+        case .below: return EventsPanelMetrics.clampFraction(CGFloat(eventsBelowFractionRaw))
+        case .column, .off: return EventsPanelMetrics.clampFraction(CGFloat(eventsColumnFractionRaw))
+        }
     }
 
     // MARK: - Mutations
@@ -99,6 +118,18 @@ final class AppSettings: ObservableObject {
 
     func setEventsPlacement(_ placement: EventsPlacement) {
         eventsPlacementRaw = placement.rawValue
+    }
+
+    /// Parks the divider at `fraction` of the window for the placement given.
+    /// Called continuously while the divider is dragged — `@AppStorage` writes
+    /// are cheap, and writing through means an unexpected quit keeps the split.
+    func setEventsFraction(_ fraction: CGFloat, for placement: EventsPlacement) {
+        let clamped = Double(EventsPanelMetrics.clampFraction(fraction))
+        switch placement {
+        case .below: eventsBelowFractionRaw = clamped
+        case .column: eventsColumnFractionRaw = clamped
+        case .off: break
+        }
     }
 
     /// Advances off → column → below → off.

@@ -6,33 +6,76 @@ import SwiftUI
 /// so these numbers feed `FaceMetrics.unit(fitting:)` as well as the panel's own
 /// frame — keeping the two in one place is what stops the clock from either
 /// overlapping the panel or leaving a gap beside it.
+///
+/// The share itself is the user's: it lives in `AppSettings` and the divider
+/// moves it. What lives here is the translation from that fraction into points,
+/// plus the floors that keep both halves usable when the window is small enough
+/// that the fraction alone would starve one of them.
 enum EventsPanelMetrics {
 
-    /// Share of the window width the column would like, and the point bounds it
-    /// is clamped to so it stays readable on a huge display and doesn't swallow
-    /// the clock on a tiny one. The column carries a time axis as well as the
-    /// event blocks, so it runs a little wider than a plain list needed.
-    static let columnFraction: CGFloat = 0.34
-    static let columnMinWidth: CGFloat = 150
-    static let columnMaxWidth: CGFloat = 300
-    /// Hard ceiling relative to the window: the face always keeps the majority.
-    private static let columnMaxFraction: CGFloat = 0.42
+    /// Bounds on the panel's share of the window. The ceiling keeps the face
+    /// the larger half of the split; the floor stops a drag from collapsing the
+    /// panel into an unreadable sliver.
+    static let fractionRange: ClosedRange<CGFloat> = 0.15...0.5
 
-    /// The strip has to stack an hour ruler above at least one lane of event
-    /// blocks, so its floor is taller than a row of chips required.
-    static let stripFraction: CGFloat = 0.30
-    static let stripMinHeight: CGFloat = 70
-    static let stripMaxHeight: CGFloat = 140
-    private static let stripMaxFraction: CGFloat = 0.42
-
-    static func columnWidth(inWindowWidth width: CGFloat) -> CGFloat {
-        let wanted = min(max(width * columnFraction, columnMinWidth), columnMaxWidth)
-        return max(0, min(wanted, width * columnMaxFraction))
+    static func clampFraction(_ value: CGFloat) -> CGFloat {
+        guard value.isFinite else { return fractionRange.lowerBound }
+        return min(max(value, fractionRange.lowerBound), fractionRange.upperBound)
     }
 
-    static func stripHeight(inWindowHeight height: CGFloat) -> CGFloat {
-        let wanted = min(max(height * stripFraction, stripMinHeight), stripMaxHeight)
-        return max(0, min(wanted, height * stripMaxFraction))
+    /// The column carries a time axis as well as the event blocks, so its floor
+    /// is wider than a plain list would need.
+    static let columnMinWidth: CGFloat = 120
+    /// The strip has to stack an hour ruler above at least one lane of blocks.
+    static let stripMinHeight: CGFloat = 64
+
+    /// What the face keeps no matter where the divider is dragged. Below these
+    /// the digits stop being a clock, so the divider simply refuses to go on.
+    static let faceMinWidth: CGFloat = 150
+    static let faceMinHeight: CGFloat = 50
+
+    /// Layout width of the divider gutter — the visible hairline plus the
+    /// slack around it that makes the handle grabbable.
+    static let dividerThickness: CGFloat = 9
+
+    static func columnWidth(inWindowWidth width: CGFloat, fraction: CGFloat) -> CGFloat {
+        clamp(width * clampFraction(fraction),
+              inWindow: width, panelMin: columnMinWidth, faceMin: faceMinWidth)
+    }
+
+    static func stripHeight(inWindowHeight height: CGFloat, fraction: CGFloat) -> CGFloat {
+        clamp(height * clampFraction(fraction),
+              inWindow: height, panelMin: stripMinHeight, faceMin: faceMinHeight)
+    }
+
+    /// The inverse, for the divider: the fraction to store so the panel lands as
+    /// close to `extent` points as the clamps allow. Running the drag through
+    /// the same clamps is what stops the stored value from drifting past the
+    /// edge the user can actually see the divider stop at.
+    static func columnFraction(forWidth extent: CGFloat, inWindowWidth width: CGFloat) -> CGFloat {
+        fraction(for: extent, inWindow: width, panelMin: columnMinWidth, faceMin: faceMinWidth)
+    }
+
+    static func stripFraction(forHeight extent: CGFloat, inWindowHeight height: CGFloat) -> CGFloat {
+        fraction(for: extent, inWindow: height, panelMin: stripMinHeight, faceMin: faceMinHeight)
+    }
+
+    private static func clamp(_ wanted: CGFloat, inWindow total: CGFloat,
+                              panelMin: CGFloat, faceMin: CGFloat) -> CGFloat {
+        guard total > 0 else { return 0 }
+        // The floor yields first when the window is too small to honour both
+        // floors at once: a clipped panel beats a face with no room to draw.
+        let lower = max(0, min(panelMin, total - dividerThickness))
+        let upper = max(lower, min(total * fractionRange.upperBound,
+                                   total - faceMin - dividerThickness))
+        return min(max(wanted, lower), upper)
+    }
+
+    private static func fraction(for extent: CGFloat, inWindow total: CGFloat,
+                                 panelMin: CGFloat, faceMin: CGFloat) -> CGFloat {
+        guard total > 0 else { return fractionRange.lowerBound }
+        let points = clamp(extent, inWindow: total, panelMin: panelMin, faceMin: faceMin)
+        return clampFraction(points / total)
     }
 }
 
