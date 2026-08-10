@@ -43,14 +43,14 @@ struct CadenceFillView: View {
             TimelineView(.periodic(from: .now, by: Self.creepDuration)) { context in
                 let fraction = schedule.fractionRemaining(at: context.date) ?? 0
                 // The panel keeps its full-size rounded silhouette and is
-                // revealed through a trailing-anchored mask, so the corners stay
+                // revealed through a leading-anchored mask, so the corners stay
                 // soft while the moving edge itself is a clean vertical cut —
-                // shrinking the shape instead would round the leading edge and
+                // shrinking the shape instead would round the trailing edge and
                 // read as a pill sliding away rather than a wipe.
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
                     .fill(Self.panelColor)
                     .frame(width: geo.size.width, height: geo.size.height)
-                    .mask(alignment: .trailing) {
+                    .mask(alignment: .leading) {
                         Rectangle()
                             .frame(width: geo.size.width * fraction,
                                    height: geo.size.height)

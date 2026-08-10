@@ -12,7 +12,7 @@ A lightweight macOS flip clock.
   - every 15 minutes
   - custom minute interval
   - off
-- A **cadence countdown fill** behind the clock: a warm amber panel that fills the face when the time is announced and then wipes away left to right as the next announcement approaches, so the wait is visible at a glance. Only shown when a cadence is set; switch it off with "Show cadence fill" in Settings.
+- A **cadence countdown fill** behind the clock: a warm amber panel that fills the face when the time is announced and then drains right to left as the next announcement approaches, so the wait is visible at a glance. Only shown when a cadence is set; switch it off with "Show cadence fill" in Settings.
 - Today's remaining calendar events beside the clock (EventKit — any account synced to macOS Calendar). **⌘2** (main row or numeric keypad) cycles the panel off → right column → below the clock; the clock rescales to the space that's left. Calendar access is asked for only when you first turn the panel on.
 - **Spacebar** speaks the current time on demand (app focused) — works even with the cadence set to off. Also in the menu as "Speak Time".
 
