@@ -95,7 +95,12 @@ final class EventsService: ObservableObject {
 
     // MARK: - Fetching
 
-    /// Reloads the events between `now` and the end of `now`'s day.
+    /// Reloads the whole of `now`'s day, midnight to midnight.
+    ///
+    /// The panel draws a day timeline, so events that have already finished are
+    /// still part of the picture — the user scrolls back to them. (Fetching
+    /// from `now` would have kept in-progress events, since the predicate
+    /// matches on overlap, but it dropped the earlier part of the day.)
     /// A no-op unless access has been granted.
     func refresh(now: Date, calendar: Calendar = .current) {
         guard authorization == .granted else {
@@ -106,7 +111,7 @@ final class EventsService: ObservableObject {
         let startOfDay = calendar.startOfDay(for: now)
         guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else { return }
 
-        let predicate = store.predicateForEvents(withStart: now, end: endOfDay, calendars: nil)
+        let predicate = store.predicateForEvents(withStart: startOfDay, end: endOfDay, calendars: nil)
         let items = store.events(matching: predicate)
             .sorted { lhs, rhs in
                 // All-day events head the list; the rest run in start order.

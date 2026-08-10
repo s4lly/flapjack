@@ -21,13 +21,13 @@ struct ContentView: View {
                     let width = EventsPanelMetrics.columnWidth(inWindowWidth: geo.size.width)
                     HStack(spacing: 0) {
                         face.frame(width: max(0, geo.size.width - width))
-                        EventsColumn(state: panelState, width: width)
+                        EventsColumn(state: panelState, width: width, now: engine.now)
                     }
                 case .below:
                     let height = EventsPanelMetrics.stripHeight(inWindowHeight: geo.size.height)
                     VStack(spacing: 0) {
                         face.frame(height: max(0, geo.size.height - height))
-                        EventsStrip(state: panelState, height: height)
+                        EventsStrip(state: panelState, height: height, now: engine.now)
                     }
                 }
             }
