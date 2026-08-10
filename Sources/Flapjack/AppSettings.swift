@@ -90,6 +90,14 @@ final class AppSettings: ObservableObject {
     @AppStorage("notifyOnCadence") private var notifyOnCadenceRaw = false {
         willSet { objectWillChange.send() }
     }
+    /// Turn other apps' music down for the length of a spoken time check.
+    /// Defaults off for the same reason notifications do: the first duck sends
+    /// an Apple Event to a music player, and *that* is what raises the system's
+    /// Automation permission prompt. An app that provokes it unasked earns a
+    /// "Don't Allow", and only System Settings can reverse that.
+    @AppStorage("duckOtherAudio") private var duckOtherAudioRaw = false {
+        willSet { objectWillChange.send() }
+    }
     /// `AVSpeechSynthesisVoice.identifier` of the voice to announce with. Empty
     /// means automatic — the best installed voice, recomputed each time we
     /// speak. Stored as the identifier rather than an index so that installing
@@ -117,6 +125,8 @@ final class AppSettings: ObservableObject {
     var speakOnCadence: Bool { speakOnCadenceRaw }
 
     var notifyOnCadence: Bool { notifyOnCadenceRaw }
+
+    var duckOtherAudio: Bool { duckOtherAudioRaw }
 
     /// The announcement timetable implied by the current settings. Recomputed on
     /// read, so a cadence change retargets the countdown on the very next tick.
@@ -163,6 +173,13 @@ final class AppSettings: ObservableObject {
     /// stays pure state, exactly as it does for the calendar panel.
     func setNotifyOnCadence(_ on: Bool) {
         notifyOnCadenceRaw = on
+    }
+
+    /// Ducking asks the system for nothing here — the permission prompt comes
+    /// from the first Apple Event, when the clock next speaks. This object stays
+    /// pure state, as it does for notifications and the calendar.
+    func setDuckOtherAudio(_ on: Bool) {
+        duckOtherAudioRaw = on
     }
 
     /// `""` restores automatic voice selection.

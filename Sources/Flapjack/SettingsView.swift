@@ -13,6 +13,12 @@ struct SettingsView: View {
     /// authorization state the UI shows is the one the boundary will act on.
     @ObservedObject var notifier: NotificationAnnouncer
 
+    /// Shared for the same reason again: whether the user allowed us to control
+    /// their music player is something only the ducker learns, and only by
+    /// trying — so the hint below has to read the state of the very object the
+    /// announcer ducks with.
+    @ObservedObject var ducker: AudioDucker
+
     /// Re-read whenever the window appears, and again when the system reports a
     /// change: a user sent to System Settings by the hint below downloads a
     /// voice and comes straight back, and the picker has to have it by then.
@@ -118,6 +124,52 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+
+        duckingRows
+    }
+
+    /// Sits with the convey toggles because it is about the voice being *heard*,
+    /// but deliberately isn't disabled with cadence Off: the spacebar speaks
+    /// regardless of the cadence, and it is the trigger most likely to land in
+    /// the middle of a loud track.
+    @ViewBuilder
+    private var duckingRows: some View {
+        Toggle("Lower other apps' audio while speaking", isOn: Binding(
+            get: { settings.duckOtherAudio },
+            set: { settings.setDuckOtherAudio($0) }
+        ))
+
+        Text("Works with music players macOS can script — Spotify and Music. Their volume drops while the time is spoken and goes straight back. macOS asks your permission to control each player the first time, and audio from apps that can't be scripted (browsers, games, calls) can't be lowered.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+        // Shown only after a player has actually refused us, which is the only
+        // state the user has to leave the app to fix — the same rule the
+        // notification and voice hints follow.
+        if ducker.automationDenied {
+            Text("Flapjack isn't allowed to control your music player. Switch it on in System Settings → Privacy & Security → Automation → Flapjack.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button("Open Automation Settings…", action: openAutomationSettings)
+                .help("System Settings → Privacy & Security → Automation")
+        }
+    }
+
+    /// Deep-links to Privacy & Security → Automation. The `Privacy_Automation`
+    /// anchor on the old security prefPane id is the form that has worked
+    /// unchanged since Mojave introduced the pane, and still lands correctly on
+    /// macOS 26; the Ventura-era extension bundle id follows as a hedge.
+    private func openAutomationSettings() {
+        let urls = [
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation",
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Automation"
+        ]
+        for string in urls {
+            if let url = URL(string: string), NSWorkspace.shared.open(url) { return }
         }
     }
 

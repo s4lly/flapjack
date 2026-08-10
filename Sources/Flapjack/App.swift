@@ -8,6 +8,7 @@ struct FlapjackApp: App {
     @StateObject private var events = EventsService()
 
     @StateObject private var notifier = NotificationAnnouncer()
+    @StateObject private var ducker = AudioDucker()
 
     private let announcer = Announcer()
     private let hotkeys = HotkeyMonitor()
@@ -47,7 +48,7 @@ struct FlapjackApp: App {
         }
 
         Settings {
-            SettingsView(announcer: announcer, notifier: notifier)
+            SettingsView(announcer: announcer, notifier: notifier, ducker: ducker)
                 .environmentObject(settings)
         }
     }
@@ -56,6 +57,10 @@ struct FlapjackApp: App {
     @MainActor
     private func bootstrap() {
         announcer.voiceIdentifier = { settings.voiceIdentifier }
+        // Wired here rather than owned by the announcer so the same ducker
+        // instance backs both the speech path and the state Settings shows.
+        announcer.ducker = ducker
+        announcer.duckOtherAudio = { settings.duckOtherAudio }
         engine.onMinute = { date in
             MainActor.assumeIsolated {
                 refreshEvents(at: date)
