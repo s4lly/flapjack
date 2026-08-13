@@ -1,21 +1,26 @@
 import AppKit
 import SwiftUI
 
-/// The third way the clock can convey a cadence boundary: a little plane tows a
-/// banner with the time across the screen, once, and is gone.
+/// The third way the clock can convey a cadence boundary: a little character
+/// carries a banner with the time across the screen, once, and is gone.
 ///
 /// The sibling of `Announcer` and `NotificationAnnouncer` — same lifetime, same
 /// main-actor isolation, same `TimePhrase.display` wording, so all three convey
 /// methods can never disagree about what time it is.
 ///
 /// What distinguishes it is that it owns a *window*. Each flight builds its own
-/// borderless, transparent overlay spanning one screen, flies the plane across
-/// it, and closes it when the plane is fully offscreen. Nothing is kept alive
-/// between flights: an invisible full-screen window sitting around forever is a
-/// liability (Space changes, display reconfiguration, click-through regressions)
-/// for no gain, since building one is cheap.
+/// borderless, transparent overlay spanning one screen, flies the character
+/// across it, and closes it when the character is fully offscreen. Nothing is
+/// kept alive between flights: an invisible full-screen window sitting around
+/// forever is a liability (Space changes, display reconfiguration, click-through
+/// regressions) for no gain, since building one is cheap.
+///
+/// `BannerStyle` chooses who does the carrying. It is a property of the flight,
+/// not of the controller: the window, the path, the timing and the teardown are
+/// identical either way, so the style travels with the plan into the view and
+/// nothing else in here has to know about it.
 @MainActor
-final class AirplaneBannerController {
+final class BannerFlightController {
 
     /// Flights already in the air are independent windows, so a boundary that
     /// lands mid-flight can simply add another. Two at once still reads as
@@ -32,20 +37,24 @@ final class AirplaneBannerController {
     /// so ARC owns them and this array is that ownership.
     private var flights: [NSWindow] = []
 
-    /// Sends one plane across the screen the pointer is on.
+    /// Sends one banner across the screen the pointer is on.
     ///
     /// The pointer's screen is the right target for the same reason the events
     /// panel follows the window: it is where the user is looking. With no
     /// screen under the pointer (possible mid-display-change) the main screen
     /// stands in.
-    func fly(at date: Date) {
+    func fly(at date: Date, style: BannerStyle) {
         guard flights.count < Self.maxConcurrentFlights else { return }
         guard let screen = Self.targetScreen() else { return }
 
-        let plan = FlightPlan(screen: screen.frame.size, duration: .random(in: Self.durationRange))
+        let plan = FlightPlan(
+            screen: screen.frame.size,
+            duration: .random(in: Self.durationRange),
+            style: style
+        )
         let window = Self.makeWindow(on: screen)
         window.contentView = NSHostingView(
-            rootView: AirplaneBannerView(text: TimePhrase.display(for: date), plan: plan)
+            rootView: BannerFlightView(text: TimePhrase.display(for: date), plan: plan)
         )
         // Not `makeKeyAndOrderFront`: the overlay must never take focus, and
         // `orderFrontRegardless` shows it without activating Flapjack — which
@@ -114,11 +123,12 @@ final class AirplaneBannerController {
     }
 }
 
-/// Everything random about one flight, decided once so the view can stay pure.
+/// Everything decided once per flight, so the view can stay a pure function of
+/// elapsed time.
 struct FlightPlan {
 
-    /// Which way the plane is pointing — it always leads, and the banner always
-    /// trails behind it.
+    /// Which way the character is pointing — it always leads, and the banner
+    /// always trails behind it.
     enum Direction {
         case rightward
         case leftward
@@ -126,6 +136,7 @@ struct FlightPlan {
 
     let direction: Direction
     let duration: Double
+    let style: BannerStyle
 
     /// Top-left corner of the assembly's lane, in the view's own coordinates.
     let altitude: CGFloat
@@ -134,14 +145,21 @@ struct FlightPlan {
     let startX: CGFloat
     let endX: CGFloat
 
-    /// Total width of plane + tow line + banner. Modest by design: noticeable
-    /// crossing a 1440-point screen, nowhere near dominating it.
+    /// Total width of character + tow line + banner. Modest by design:
+    /// noticeable crossing a 1440-point screen, nowhere near dominating it.
     static let assemblyWidth: CGFloat = 250
     static let assemblyHeight: CGFloat = 54
 
-    init(screen: CGSize, duration: Double, direction: Direction? = nil) {
+    /// The tow line is the same length whoever is pulling it; the character's
+    /// lane is not, since the cat is both wider and taller than the plane. The
+    /// banner takes whatever is left, so the assembly is the same total width
+    /// in both styles and the two flights read as the same object.
+    static let towLineWidth: CGFloat = 18
+
+    init(screen: CGSize, duration: Double, style: BannerStyle, direction: Direction? = nil) {
         self.direction = direction ?? (Bool.random() ? .rightward : .leftward)
         self.duration = duration
+        self.style = style
 
         // A comfortable band: clear of the menu bar at the top and the Dock at
         // the bottom, so the banner is never half-hidden behind either.
@@ -162,12 +180,13 @@ struct FlightPlan {
     }
 }
 
-/// The flight itself: a plane silhouette towing a banner, animated straight
-/// across on a linear ramp.
+/// The flight itself: a character towing a banner, animated straight across on
+/// a linear ramp.
 ///
-/// The position is computed from elapsed time inside a `TimelineView(.animation)`
-/// rather than handed to SwiftUI as an implicit animation, and that choice was
-/// forced by two measured failures of the implicit route on this window.
+/// Every moving part — the crossing, the bob, and the cat's wave — is computed
+/// from elapsed time inside a `TimelineView(.animation)` rather than handed to
+/// SwiftUI as an implicit animation, and that choice was forced by two measured
+/// failures of the implicit route on this window.
 ///
 /// First, two `withAnimation` calls in one runloop tick get coalesced into a
 /// single transaction: the bob's `repeatForever(autoreverses:)` captured the
@@ -177,15 +196,18 @@ struct FlightPlan {
 /// kicked off from `onAppear` on a just-ordered-front hosting view ran its whole
 /// crossing in about 1.5 s, four times too fast, every time.
 ///
-/// Driving the offset from the clock sidesteps both: the frame the plane is
+/// Driving the offset from the clock sidesteps both: the frame the character is
 /// drawn at is a pure function of how long it has been flying, so the duration
 /// is exactly the duration and constant speed is constant by construction. The
-/// bob comes off the same clock for free.
-private struct AirplaneBannerView: View {
+/// bob and the wave come off the same clock for free — which is why the paw is
+/// a `sin` of elapsed time and not a `repeatForever` rotation, and why it starts
+/// waving on the first frame the window is shown rather than whenever the
+/// animation system gets round to it.
+private struct BannerFlightView: View {
     let text: String
     let plan: FlightPlan
 
-    /// Nil until the view is on screen, so the plane waits offscreen rather
+    /// Nil until the view is on screen, so the character waits offscreen rather
     /// than starting its run against a clock that began before it appeared.
     @State private var takeoff: Date?
 
@@ -197,7 +219,7 @@ private struct AirplaneBannerView: View {
             // ~0.3 Hz, ±5 pt: enough to read as flying, not enough to distract.
             let bob = sin(elapsed * 2) * 5
 
-            assembly
+            assembly(elapsed: elapsed)
                 .frame(width: FlightPlan.assemblyWidth, height: FlightPlan.assemblyHeight)
                 .offset(x: x, y: plan.altitude + bob)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -205,40 +227,120 @@ private struct AirplaneBannerView: View {
         .onAppear { takeoff = .now }
     }
 
-    /// The plane always leads, so the order of the two halves flips with the
-    /// direction — but only the plane is mirrored. Mirroring the banner too
+    /// The character always leads, so the order of the two halves flips with the
+    /// direction — but only the character is mirrored. Mirroring the banner too
     /// would reverse the time, which is the one thing the whole flight exists
     /// to show.
     @ViewBuilder
-    private var assembly: some View {
+    private func assembly(elapsed: Double) -> some View {
         HStack(spacing: 0) {
             if plan.direction == .rightward {
                 banner
                 towLine
-                plane
+                character(elapsed: elapsed)
             } else {
-                plane
+                character(elapsed: elapsed)
                 towLine
                 banner
             }
         }
     }
 
+    /// Both characters are drawn facing right and mirrored as a whole when
+    /// flying the other way, so the cat's raised paw stays on its leading side
+    /// without any per-direction geometry.
+    @ViewBuilder
+    private func character(elapsed: Double) -> some View {
+        Group {
+            switch plan.style {
+            case .airplane: plane
+            case .cat: cat(elapsed: elapsed)
+            }
+        }
+        .scaleEffect(x: plan.direction == .rightward ? 1 : -1, y: 1)
+    }
+
+    // MARK: - Airplane
+
+    private static let planeLaneWidth: CGFloat = 46
+
     private var plane: some View {
+        // The SF Symbol points right, which is what makes mirroring it enough
+        // to lead in the other direction too.
         Image(systemName: "airplane")
             .font(.system(size: 34, weight: .regular))
             .foregroundStyle(.white)
             .shadow(color: .black.opacity(0.55), radius: 3, x: 0, y: 1)
-            // The SF Symbol points right; flipping it is what makes the plane
-            // lead in the other direction too.
-            .scaleEffect(x: plan.direction == .rightward ? 1 : -1, y: 1)
-            .frame(width: 46)
+            .frame(width: Self.planeLaneWidth)
     }
+
+    // MARK: - Waving cat
+
+    private static let catLaneWidth: CGFloat = 62
+    private static let catPointSize: CGFloat = 36
+
+    /// `cat.fill` is a side-on silhouette facing right, standing on all four
+    /// legs — available since macOS 14, so it needs no fallback at this
+    /// deployment target. The greeting is the part the symbol can't do: a paw
+    /// is drawn over the cat's chest as a capsule with a rounded pad on the
+    /// end, pivoting about its base so it sweeps rather than slides, in the
+    /// same white with the same shadow so it reads as part of the silhouette
+    /// rather than a decal on top of it.
+    ///
+    /// Two waves a second, swinging either side of upright: fast enough to be
+    /// unmistakably a wave at a glance from across a 1440-point screen, slow
+    /// enough not to blur.
+    private func cat(elapsed: Double) -> some View {
+        let wave = sin(elapsed * 4 * .pi)
+        let angle = Self.pawRestAngle + wave * Self.pawSwing
+
+        return Image(systemName: "cat.fill")
+            .font(.system(size: Self.catPointSize, weight: .regular))
+            .foregroundStyle(.white)
+            .overlay(alignment: .center) { paw(angle: angle) }
+            .shadow(color: .black.opacity(0.55), radius: 3, x: 0, y: 1)
+            .frame(width: Self.catLaneWidth)
+    }
+
+    /// Degrees from vertical. Twenty each way, measured against the alternatives
+    /// on a contact sheet of both extremes: any wider, or any further forward,
+    /// and the top of the stroke lands on the cat's own head, which reads as a
+    /// blob rather than a wave.
+    private static let pawRestAngle: Double = 0
+    private static let pawSwing: Double = 20
+
+    /// Anchored so its base sits inside the cat's shoulder, measured from the
+    /// centre of the symbol's box: the join has to be *under* the silhouette or
+    /// the wave looks like a floating stick, and the paw has to clear the cat's
+    /// back at every angle or it reads as a leg rather than a greeting.
+    private static let pawBase = CGPoint(x: 4, y: 1)
+    private static let pawLength: CGFloat = 23
+    private static let pawWidth: CGFloat = 5
+
+    private func paw(angle: Double) -> some View {
+        Capsule(style: .continuous)
+            .fill(.white)
+            .frame(width: Self.pawWidth, height: Self.pawLength)
+            .overlay(alignment: .top) {
+                // The pad: a slightly fatter round tip, which is what turns a
+                // rotating bar into a paw.
+                Circle()
+                    .fill(.white)
+                    .frame(width: Self.pawWidth + 2, height: Self.pawWidth + 2)
+                    .offset(y: -1)
+            }
+            // Rotating about the base is the whole gesture: the tip travels and
+            // the shoulder stays put, which is what a wave is.
+            .rotationEffect(.degrees(angle), anchor: .bottom)
+            .offset(x: Self.pawBase.x, y: Self.pawBase.y - Self.pawLength / 2)
+    }
+
+    // MARK: - Banner
 
     private var towLine: some View {
         Rectangle()
             .fill(.white.opacity(0.8))
-            .frame(width: 18, height: 2)
+            .frame(width: FlightPlan.towLineWidth, height: 2)
             .shadow(color: .black.opacity(0.5), radius: 2)
     }
 
@@ -262,6 +364,13 @@ private struct AirplaneBannerView: View {
                     .strokeBorder(.white.opacity(0.55), lineWidth: 1.5)
             )
             .shadow(color: .black.opacity(0.45), radius: 6, x: 0, y: 2)
-            .frame(width: FlightPlan.assemblyWidth - 64)
+            .frame(width: bannerWidth)
+    }
+
+    /// Whatever the character and its tow line leave over, so both styles fill
+    /// the same assembly width.
+    private var bannerWidth: CGFloat {
+        let lane = plan.style == .cat ? Self.catLaneWidth : Self.planeLaneWidth
+        return FlightPlan.assemblyWidth - lane - FlightPlan.towLineWidth
     }
 }

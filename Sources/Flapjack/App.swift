@@ -12,7 +12,7 @@ struct FlapjackApp: App {
 
     private let announcer = Announcer()
     private let hotkeys = HotkeyMonitor()
-    private let plane = AirplaneBannerController()
+    private let banner = BannerFlightController()
 
     var body: some Scene {
         WindowGroup {
@@ -49,7 +49,7 @@ struct FlapjackApp: App {
         }
 
         Settings {
-            SettingsView(announcer: announcer, notifier: notifier, ducker: ducker, plane: plane)
+            SettingsView(announcer: announcer, notifier: notifier, ducker: ducker, banner: banner)
                 .environmentObject(settings)
         }
     }
@@ -72,7 +72,7 @@ struct FlapjackApp: App {
                 guard settings.shouldAnnounce(at: date) else { return }
                 if settings.speakOnCadence { announcer.announce(date) }
                 if settings.notifyOnCadence { notifier.notify(date) }
-                if settings.planeOnCadence { plane.fly(at: date) }
+                if settings.bannerOnCadence { banner.fly(at: date, style: settings.bannerStyle) }
             }
         }
         // Timers don't fire during sleep, so a wake can land far past the last

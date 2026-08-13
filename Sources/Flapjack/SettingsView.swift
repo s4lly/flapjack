@@ -20,9 +20,10 @@ struct SettingsView: View {
     @ObservedObject var ducker: AudioDucker
 
     /// Shared for the same reason the announcer is: the Preview button below
-    /// flies through the very controller the cadence boundary will use, so what
-    /// the user auditions is what they will get.
-    let plane: AirplaneBannerController
+    /// flies through the very controller the cadence boundary will use, with the
+    /// style the boundary would use, so what the user auditions is what they
+    /// will get.
+    let banner: BannerFlightController
 
     /// Re-read whenever the window appears, and again when the system reports a
     /// change: a user sent to System Settings by the hint below downloads a
@@ -131,31 +132,43 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
 
-        planeRows
+        bannerRows
 
         duckingRows
     }
 
-    /// The third convey method. Its Preview button is the only trigger for a
-    /// flight outside the cadence — the same audition role the voice Test
-    /// button plays — so it stays enabled even with cadence Off, where the
-    /// toggle beside it has nothing to act on.
+    /// The third convey method, plus the choice of who carries it. Its Preview
+    /// button is the only trigger for a flight outside the cadence — the same
+    /// audition role the voice Test button plays — so it stays enabled even
+    /// with cadence Off, where the toggle beside it has nothing to act on.
     @ViewBuilder
-    private var planeRows: some View {
+    private var bannerRows: some View {
         HStack {
-            Toggle("Airplane banner", isOn: Binding(
-                get: { settings.planeOnCadence },
-                set: { settings.setPlaneOnCadence($0) }
+            Toggle("Flying banner", isOn: Binding(
+                get: { settings.bannerOnCadence },
+                set: { settings.setBannerOnCadence($0) }
             ))
             .disabled(settings.announceMode == .off)
 
             Spacer()
 
-            Button("Preview") { plane.fly(at: Date()) }
-                .help("Send one plane across the screen now")
+            Button("Preview") { banner.fly(at: Date(), style: settings.bannerStyle) }
+                .help("Send one banner across the screen now")
         }
 
-        Text("A little plane tows the time across your screen.")
+        // Appears with the toggle rather than sitting permanently disabled
+        // beside it, the same way the custom-interval stepper follows its own
+        // cadence mode: a style is only a question once there is a banner.
+        if settings.bannerOnCadence {
+            Picker("Style:", selection: settings.bannerStyleBinding) {
+                ForEach(BannerStyle.allCases) { style in
+                    Text(style.label).tag(style)
+                }
+            }
+            .pickerStyle(.segmented)
+        }
+
+        Text("A little plane — or a cat waving hello — carries the time across your screen.")
             .font(.caption)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)

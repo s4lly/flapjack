@@ -39,6 +39,25 @@ enum EventsPlacement: String, CaseIterable, Identifiable {
     }
 }
 
+/// Who carries the time across the screen when the banner flies.
+///
+/// The banner itself — wording, path, timing, teardown — is identical either
+/// way; only the character drawn at the front of it changes, which is why this
+/// is a separate setting from the on/off toggle rather than a third state of it.
+enum BannerStyle: String, CaseIterable, Identifiable {
+    case airplane
+    case cat
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .airplane: return "Airplane"
+        case .cat: return "Waving cat"
+        }
+    }
+}
+
 /// The app's model layer.
 ///
 /// Every settings/state mutation goes through this object rather than being
@@ -90,10 +109,19 @@ final class AppSettings: ObservableObject {
     @AppStorage("notifyOnCadence") private var notifyOnCadenceRaw = false {
         willSet { objectWillChange.send() }
     }
-    /// The airplane banner. Defaults off for the plainest of reasons: it draws
+    /// The flying banner. Defaults off for the plainest of reasons: it draws
     /// over every app on screen, and that is not something to start doing
     /// unasked. It needs no permission, so it is off by taste, not by prompt.
-    @AppStorage("planeOnCadence") private var planeOnCadenceRaw = false {
+    ///
+    /// The stored key is still `planeOnCadence`: the property was renamed when
+    /// the banner grew a second character, but renaming the key too would have
+    /// silently switched the feature off for everyone already using it.
+    @AppStorage("planeOnCadence") private var bannerOnCadenceRaw = false {
+        willSet { objectWillChange.send() }
+    }
+    /// Which character flies it. Airplane is the default because it is what the
+    /// banner has always been.
+    @AppStorage("bannerStyle") private var bannerStyleRaw = BannerStyle.airplane.rawValue {
         willSet { objectWillChange.send() }
     }
     /// Turn other apps' music down for the length of a spoken time check.
@@ -132,7 +160,11 @@ final class AppSettings: ObservableObject {
 
     var notifyOnCadence: Bool { notifyOnCadenceRaw }
 
-    var planeOnCadence: Bool { planeOnCadenceRaw }
+    var bannerOnCadence: Bool { bannerOnCadenceRaw }
+
+    var bannerStyle: BannerStyle {
+        BannerStyle(rawValue: bannerStyleRaw) ?? .airplane
+    }
 
     var duckOtherAudio: Bool { duckOtherAudioRaw }
 
@@ -183,8 +215,12 @@ final class AppSettings: ObservableObject {
         notifyOnCadenceRaw = on
     }
 
-    func setPlaneOnCadence(_ on: Bool) {
-        planeOnCadenceRaw = on
+    func setBannerOnCadence(_ on: Bool) {
+        bannerOnCadenceRaw = on
+    }
+
+    func setBannerStyle(_ style: BannerStyle) {
+        bannerStyleRaw = style.rawValue
     }
 
     /// Ducking asks the system for nothing here — the permission prompt comes
@@ -241,6 +277,10 @@ final class AppSettings: ObservableObject {
 
     var eventsPlacementBinding: Binding<EventsPlacement> {
         Binding(get: { self.eventsPlacement }, set: { self.setEventsPlacement($0) })
+    }
+
+    var bannerStyleBinding: Binding<BannerStyle> {
+        Binding(get: { self.bannerStyle }, set: { self.setBannerStyle($0) })
     }
 
     var voiceIdentifierBinding: Binding<String> {
