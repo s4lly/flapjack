@@ -78,16 +78,22 @@ final class AppSettings: ObservableObject {
     @AppStorage("showCadenceFill") private var showCadenceFillRaw = true {
         willSet { objectWillChange.send() }
     }
-    /// The two ways a cadence boundary can be conveyed, independently
+    /// The three ways a cadence boundary can be conveyed, independently
     /// switchable. Voice defaults on (it is what the cadence has always meant)
     /// and notification defaults off, since turning it on is what triggers the
     /// system permission prompt — an app that asks unbidden gets a reflexive
-    /// "Don't Allow". Both off is allowed: the cadence fill still counts down,
+    /// "Don't Allow". All off is allowed: the cadence fill still counts down,
     /// and nothing fires at the boundary.
     @AppStorage("speakOnCadence") private var speakOnCadenceRaw = true {
         willSet { objectWillChange.send() }
     }
     @AppStorage("notifyOnCadence") private var notifyOnCadenceRaw = false {
+        willSet { objectWillChange.send() }
+    }
+    /// The airplane banner. Defaults off for the plainest of reasons: it draws
+    /// over every app on screen, and that is not something to start doing
+    /// unasked. It needs no permission, so it is off by taste, not by prompt.
+    @AppStorage("planeOnCadence") private var planeOnCadenceRaw = false {
         willSet { objectWillChange.send() }
     }
     /// Turn other apps' music down for the length of a spoken time check.
@@ -125,6 +131,8 @@ final class AppSettings: ObservableObject {
     var speakOnCadence: Bool { speakOnCadenceRaw }
 
     var notifyOnCadence: Bool { notifyOnCadenceRaw }
+
+    var planeOnCadence: Bool { planeOnCadenceRaw }
 
     var duckOtherAudio: Bool { duckOtherAudioRaw }
 
@@ -173,6 +181,10 @@ final class AppSettings: ObservableObject {
     /// stays pure state, exactly as it does for the calendar panel.
     func setNotifyOnCadence(_ on: Bool) {
         notifyOnCadenceRaw = on
+    }
+
+    func setPlaneOnCadence(_ on: Bool) {
+        planeOnCadenceRaw = on
     }
 
     /// Ducking asks the system for nothing here — the permission prompt comes

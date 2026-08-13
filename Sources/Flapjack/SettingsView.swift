@@ -19,6 +19,11 @@ struct SettingsView: View {
     /// announcer ducks with.
     @ObservedObject var ducker: AudioDucker
 
+    /// Shared for the same reason the announcer is: the Preview button below
+    /// flies through the very controller the cadence boundary will use, so what
+    /// the user auditions is what they will get.
+    let plane: AirplaneBannerController
+
     /// Re-read whenever the window appears, and again when the system reports a
     /// change: a user sent to System Settings by the hint below downloads a
     /// voice and comes straight back, and the picker has to have it by then.
@@ -86,10 +91,10 @@ struct SettingsView: View {
 
     // MARK: - Convey with
 
-    /// How a cadence boundary is delivered. Both toggles are independent, and
-    /// both are disabled with cadence Off, where there is no boundary to
+    /// How a cadence boundary is delivered. All three toggles are independent,
+    /// and all are disabled with cadence Off, where there is no boundary to
     /// convey — the spacebar's on-demand speech is deliberately outside this
-    /// group and ignores both.
+    /// group and ignores all of them.
     @ViewBuilder
     private var conveySection: some View {
         Text("Convey with:")
@@ -126,7 +131,34 @@ struct SettingsView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
 
+        planeRows
+
         duckingRows
+    }
+
+    /// The third convey method. Its Preview button is the only trigger for a
+    /// flight outside the cadence — the same audition role the voice Test
+    /// button plays — so it stays enabled even with cadence Off, where the
+    /// toggle beside it has nothing to act on.
+    @ViewBuilder
+    private var planeRows: some View {
+        HStack {
+            Toggle("Airplane banner", isOn: Binding(
+                get: { settings.planeOnCadence },
+                set: { settings.setPlaneOnCadence($0) }
+            ))
+            .disabled(settings.announceMode == .off)
+
+            Spacer()
+
+            Button("Preview") { plane.fly(at: Date()) }
+                .help("Send one plane across the screen now")
+        }
+
+        Text("A little plane tows the time across your screen.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     /// Sits with the convey toggles because it is about the voice being *heard*,

@@ -12,7 +12,8 @@ A lightweight macOS flip clock.
   - every 15 minutes
   - custom minute interval
   - off
-- **Two ways to hear about it, each switchable on its own** — the "Convey with" toggles in Settings. **Voice** speaks the time aloud ("ten oh-seven PM"); **Notification** posts it as a macOS notification. Turn on either, both, or neither. Notifications are off until you ask for them — flipping the toggle on is what requests permission.
+- **Three ways to be told, each switchable on its own** — the "Convey with" toggles in Settings. **Voice** speaks the time aloud ("ten oh-seven PM"); **Notification** posts it as a macOS notification; **Airplane banner** sends a little plane towing the time across your screen. Turn on any, all, or none. Notifications are off until you ask for them — flipping the toggle on is what requests permission.
+- **Airplane banner** (off by default): at each cadence tick a plane tows a banner reading the time across whichever desktop you're looking at — over your windows, the Dock and the menu bar — from a random side at a random height, once, in about seven seconds, and then it's gone. It's a ghost: clicks go straight through it, there's nothing to dismiss. The **Preview** button in Settings sends one across right now. One thing macOS won't allow: while another app is in native full screen, the plane can't be shown on that Space, so a tick that lands there passes unseen.
   - Each time check replaces the last, so Notification Center never fills up with stale ones.
   - Whether the notification lingers until you dismiss it or fades after a few seconds is **your** setting, not the app's: **System Settings → Notifications → Flapjack → Alert Style**, "Persistent" vs "Temporary" (called "Alerts" and "Banners" before macOS 26). Settings has a button that takes you straight to that pane.
 - **Voice picker** in Settings, with a **Test** button to hear the current time straight away. "Automatic" uses the best voice installed on your Mac.
