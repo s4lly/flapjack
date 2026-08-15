@@ -1,6 +1,57 @@
 import AVFoundation
 import SwiftUI
 
+/// The three panes of the Settings window. Raw values are persisted, so they
+/// are part of the defaults contract and must not be renamed.
+private enum SettingsTab: String, CaseIterable {
+    case general
+    case speech
+    case alerts
+}
+
+/// One pane of the Settings window: a grouped form laid out at its own content
+/// height, given a *definite* height of its own so the window can size itself to
+/// the selected tab — the standard macOS settings behaviour, and the whole point
+/// of the split. A greedy page (a plain `ScrollView`, or a `maxHeight` frame)
+/// would make every tab as tall as the tallest one, which is exactly what this
+/// window is trying to stop being.
+///
+/// The height is the form's own, capped: past the cap the page scrolls instead
+/// of pushing the window off a short screen. Only the tallest state of the
+/// tallest pane (Speech with the better-voice hint showing) reaches it.
+private struct SettingsPage<Content: View>: View {
+    let width: CGFloat
+    let maxHeight: CGFloat
+    @ViewBuilder let content: Content
+
+    /// The form's laid-out height, measured rather than assumed: the panes grow
+    /// and shrink as conditional hints and pickers appear.
+    @State private var contentHeight: CGFloat?
+
+    var body: some View {
+        ScrollView {
+            Form {
+                content
+            }
+            .formStyle(.grouped)
+            // Fixes the form to its content height, so what is measured below is
+            // the height it *wants*, not the height the scroll view offered it.
+            .fixedSize(horizontal: false, vertical: true)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .onChange(of: proxy.size.height, initial: true) { _, height in
+                            contentHeight = height
+                        }
+                }
+            )
+        }
+        // No rubber-banding on the panes that fit, which is most of them.
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(width: width, height: min(contentHeight ?? maxHeight, maxHeight))
+    }
+}
+
 struct SettingsView: View {
     @EnvironmentObject private var settings: AppSettings
 
@@ -30,52 +81,32 @@ struct SettingsView: View {
     /// voice and comes straight back, and the picker has to have it by then.
     @State private var voices: [VoiceOption] = []
 
+    /// Which pane the user was last on. Persisted so reopening the window lands
+    /// where they left it rather than always resetting to General.
+    @AppStorage("settingsTab") private var selectedTab = SettingsTab.general.rawValue
+
+    /// One page's worth of settings never grows past this, no matter how many
+    /// conditional hints are showing; past it the page scrolls instead of
+    /// pushing the window off small screens. Everything under it sizes the
+    /// window to its own content, which is what makes the window height change
+    /// as tabs are switched.
+    private static let maxPageHeight: CGFloat = 420
+    private static let pageWidth: CGFloat = 380
+
     var body: some View {
-        Form {
-            Picker("Announce time:", selection: settings.announceModeBinding) {
-                ForEach(AnnounceMode.allCases) { mode in
-                    Text(mode.label).tag(mode)
-                }
-            }
-            .pickerStyle(.inline)
+        TabView(selection: $selectedTab) {
+            page { generalRows }
+                .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsTab.general.rawValue)
 
-            if settings.announceMode == .custom {
-                Stepper(
-                    value: settings.customMinutesBinding,
-                    in: AppSettings.customMinutesRange
-                ) {
-                    Text("Every \(settings.customMinutes) minute\(settings.customMinutes == 1 ? "" : "s")")
-                }
-                Text("Announced when the minute is a multiple of the interval, anchored to the hour.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            page { speechRows }
+                .tabItem { Label("Speech", systemImage: "speaker.wave.2") }
+                .tag(SettingsTab.speech.rawValue)
 
-            conveySection
-
-            Toggle("Show cadence fill", isOn: Binding(
-                get: { settings.showCadenceFill },
-                set: { settings.setShowCadenceFill($0) }
-            ))
-            .disabled(settings.announceMode == .off)
-
-            Text("A lit panel behind the clock that shrinks as the next announcement approaches.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            voiceSection
-
-            // No explicit Divider: the grouped form already rules between rows,
-            // and a manual one renders as a stray empty row beside them.
-            Toggle("Always on top (⌘1)", isOn: Binding(
-                get: { settings.alwaysOnTop },
-                set: { settings.setAlwaysOnTop($0) }
-            ))
+            page { alertRows }
+                .tabItem { Label("Alerts", systemImage: "bell") }
+                .tag(SettingsTab.alerts.rawValue)
         }
-        .formStyle(.grouped)
-        .frame(width: 380)
-        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             refreshVoices()
             // The user can revoke notification permission in System Settings
@@ -90,14 +121,64 @@ struct SettingsView: View {
         ) { _ in refreshVoices() }
     }
 
-    // MARK: - Convey with
+    private func page<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        SettingsPage(width: Self.pageWidth, maxHeight: Self.maxPageHeight, content: content)
+    }
 
-    /// How a cadence boundary is delivered. All three toggles are independent,
-    /// and all are disabled with cadence Off, where there is no boundary to
-    /// convey — the spacebar's on-demand speech is deliberately outside this
-    /// group and ignores all of them.
+    // MARK: - General
+
+    /// When the clock speaks up, and what the face itself shows about it —
+    /// everything here is about the schedule rather than any one way of
+    /// conveying it, plus the one window-level preference.
     @ViewBuilder
-    private var conveySection: some View {
+    private var generalRows: some View {
+        Picker("Announce time:", selection: settings.announceModeBinding) {
+            ForEach(AnnounceMode.allCases) { mode in
+                Text(mode.label).tag(mode)
+            }
+        }
+        .pickerStyle(.inline)
+
+        if settings.announceMode == .custom {
+            Stepper(
+                value: settings.customMinutesBinding,
+                in: AppSettings.customMinutesRange
+            ) {
+                Text("Every \(settings.customMinutes) minute\(settings.customMinutes == 1 ? "" : "s")")
+            }
+            Text("Announced when the minute is a multiple of the interval, anchored to the hour.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        Toggle("Show cadence fill", isOn: Binding(
+            get: { settings.showCadenceFill },
+            set: { settings.setShowCadenceFill($0) }
+        ))
+        .disabled(settings.announceMode == .off)
+
+        Text("A lit panel behind the clock that shrinks as the next announcement approaches.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+        // No explicit Divider: the grouped form already rules between rows,
+        // and a manual one renders as a stray empty row beside them.
+        Toggle("Always on top (⌘1)", isOn: Binding(
+            get: { settings.alwaysOnTop },
+            set: { settings.setAlwaysOnTop($0) }
+        ))
+    }
+
+    // MARK: - Speech
+
+    /// The spoken half of "convey with": whether the cadence speaks, in whose
+    /// voice, and what happens to the music while it does. The cadence toggle
+    /// leads, since the rows under it are only interesting once something
+    /// speaks — though both the Test button and ducking stay live regardless,
+    /// because the spacebar speaks whatever the cadence says.
+    @ViewBuilder
+    private var speechRows: some View {
         Text("Convey with:")
             .font(.callout)
             .foregroundStyle(.secondary)
@@ -107,6 +188,23 @@ struct SettingsView: View {
             set: { settings.setSpeakOnCadence($0) }
         ))
         .disabled(settings.announceMode == .off)
+
+        voiceSection
+
+        duckingRows
+    }
+
+    // MARK: - Alerts
+
+    /// The two silent ways a boundary can announce itself: a system
+    /// notification, and a banner flying across the screen. Both are disabled
+    /// with cadence Off, where there is no boundary to convey — the Preview
+    /// button excepted, for the same reason the voice Test is.
+    @ViewBuilder
+    private var alertRows: some View {
+        Text("Convey with:")
+            .font(.callout)
+            .foregroundStyle(.secondary)
 
         Toggle("Notification", isOn: Binding(
             get: { settings.notifyOnCadence },
@@ -133,8 +231,6 @@ struct SettingsView: View {
         }
 
         bannerRows
-
-        duckingRows
     }
 
     /// The third convey method, plus the choice of who carries it. Its Preview
@@ -174,7 +270,7 @@ struct SettingsView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Sits with the convey toggles because it is about the voice being *heard*,
+    /// Sits with the voice rows because it is about the voice being *heard*,
     /// but deliberately isn't disabled with cadence Off: the spacebar speaks
     /// regardless of the cadence, and it is the trigger most likely to land in
     /// the middle of a loud track.
