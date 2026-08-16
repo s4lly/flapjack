@@ -8,7 +8,12 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // PROTOTYPE — see FaceStylePrototype.swift.
+            if FaceStyleProtoFlag.isEnabled {
+                FaceStyleProtoGround()
+            } else {
+                Color.black.ignoresSafeArea()
+            }
 
             // The panel claims its space first; whatever is left (less the
             // divider gutter) is handed to the face, which sizes its own slim
@@ -84,7 +89,12 @@ struct ContentView: View {
             if showsCadenceFill {
                 CadenceFillView(schedule: settings.cadenceSchedule)
             }
-            ClockFaceView(face: ClockFace(date: engine.now))
+            // PROTOTYPE — see FaceStylePrototype.swift.
+            if FaceStyleProtoFlag.isEnabled {
+                FaceStyleProtoFace(face: ClockFace(date: engine.now))
+            } else {
+                ClockFaceView(face: ClockFace(date: engine.now))
+            }
         }
     }
 

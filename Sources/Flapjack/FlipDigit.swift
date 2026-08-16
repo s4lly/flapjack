@@ -8,7 +8,31 @@ struct HalfCard: View {
     let half: Half
     let size: CGFloat
 
+    // PROTOTYPE — see FaceStylePrototype.swift. `nil` is the shipped look.
+    @Environment(\.faceRenderStyle) private var protoStyle
+
     var body: some View {
+        if let protoStyle {
+            prototypeBody(protoStyle)
+        } else {
+            shippedBody
+        }
+    }
+
+    // PROTOTYPE — throwaway.
+    private func prototypeBody(_ style: FaceRenderStyle) -> some View {
+        Text(text)
+            .font(.system(size: size * 0.86, weight: .bold, design: .monospaced))
+            .monospacedDigit()
+            .foregroundStyle(style.theme.digit)
+            .frame(width: size * 0.64, height: size)
+            .background(style.gradient(for: half))
+            .frame(height: size / 2, alignment: half == .top ? .top : .bottom)
+            .clipped()
+            .clipShape(style.shape(for: half, size: size))
+    }
+
+    private var shippedBody: some View {
         Text(text)
             .font(.system(size: size * 0.86, weight: .bold, design: .monospaced))
             .monospacedDigit()
@@ -39,26 +63,49 @@ struct FlipDigit: View {
     @State private var topAngle: Double = 0
     @State private var bottomAngle: Double = 0
 
+    // PROTOTYPE — see FaceStylePrototype.swift.
+    @Environment(\.faceRenderStyle) private var protoStyle
+
     private static let phase = 0.14
 
     var body: some View {
-        VStack(spacing: max(1, size * 0.012)) {
-            ZStack {
-                HalfCard(text: value, half: .top, size: size)
-                HalfCard(text: old, half: .top, size: size)
-                    .rotation3DEffect(.degrees(topAngle), axis: (x: 1, y: 0, z: 0),
-                                      anchor: .bottom, anchorZ: 0, perspective: 0.5)
+        ZStack {
+            // PROTOTYPE: the hinge sits behind the halves, showing through the
+            // gap, so a rotating half sweeps over it.
+            if let protoStyle, protoStyle.spec.paintsHinge {
+                HingeLine(style: protoStyle, size: size)
             }
-            ZStack {
-                HalfCard(text: old, half: .bottom, size: size)
-                HalfCard(text: value, half: .bottom, size: size)
-                    .rotation3DEffect(.degrees(bottomAngle), axis: (x: 1, y: 0, z: 0),
-                                      anchor: .top, anchorZ: 0, perspective: 0.5)
+
+            VStack(spacing: protoStyle.map { max(1, size * $0.spec.hingeGap) }
+                            ?? max(1, size * 0.012)) {
+                ZStack {
+                    HalfCard(text: value, half: .top, size: size)
+                    HalfCard(text: old, half: .top, size: size)
+                        .rotation3DEffect(.degrees(topAngle), axis: (x: 1, y: 0, z: 0),
+                                          anchor: .bottom, anchorZ: 0, perspective: 0.5)
+                }
+                ZStack {
+                    HalfCard(text: old, half: .bottom, size: size)
+                    HalfCard(text: value, half: .bottom, size: size)
+                        .rotation3DEffect(.degrees(bottomAngle), axis: (x: 1, y: 0, z: 0),
+                                          anchor: .top, anchorZ: 0, perspective: 0.5)
+                }
+            }
+
+            if let protoStyle, protoStyle.spec.pins, size >= HingePins.minimumSize {
+                HingePins(style: protoStyle, size: size)
             }
         }
-        .shadow(color: .black.opacity(0.5), radius: size * 0.04, y: size * 0.02)
+        .shadow(color: shadowColor, radius: size * 0.04, y: size * 0.02)
         .onAppear { old = value }
         .onChange(of: value) { _, newValue in flip(to: newValue) }
+    }
+
+    /// PROTOTYPE: styles that switch the drop shadow off get a fully transparent
+    /// one rather than a different modifier, so the view tree stays identical.
+    private var shadowColor: Color {
+        guard let protoStyle else { return .black.opacity(0.5) }
+        return protoStyle.spec.shadow ? protoStyle.theme.shadow : .clear
     }
 
     private func flip(to newValue: String) {
