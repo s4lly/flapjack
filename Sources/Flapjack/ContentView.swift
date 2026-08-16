@@ -81,10 +81,16 @@ struct ContentView: View {
     /// the divider — whatever space the face is handed is exactly what it fills.
     private var face: some View {
         ZStack {
-            if showsCadenceFill {
-                CadenceFillView(schedule: settings.cadenceSchedule)
+            if BorderProtoFlag.isEnabled {   // PROTOTYPE — see FaceBorderPrototype.swift
+                FaceBorderPrototypeView(schedule: settings.cadenceSchedule,
+                                        cadenceActive: showsCadenceFill,
+                                        face: ClockFace(date: engine.now))
+            } else {
+                if showsCadenceFill {
+                    CadenceFillView(schedule: settings.cadenceSchedule)
+                }
+                ClockFaceView(face: ClockFace(date: engine.now))
             }
-            ClockFaceView(face: ClockFace(date: engine.now))
         }
     }
 
