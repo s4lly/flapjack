@@ -22,6 +22,14 @@ struct WindowAccessor: NSViewRepresentable {
 final class WindowController: ObservableObject {
     private weak var window: NSWindow?
 
+    /// PROTOTYPE — see FaceStylePrototype.swift. The window's background colour
+    /// is what the transparent title bar shows through, so it is also the top
+    /// edge of the app's bezel; the prototype pushes its palette's frame colour
+    /// in here. Held as state rather than set once because the window may not
+    /// exist yet when the palette is first read, and because the palette can
+    /// change live.
+    private var chrome: NSColor?
+
     func configure(_ window: NSWindow) {
         guard self.window !== window else { return }
         self.window = window
@@ -35,9 +43,16 @@ final class WindowController: ObservableObject {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
-        window.backgroundColor = NSColor.black
+        window.backgroundColor = chrome ?? NSColor.black
         window.minSize = NSSize(width: 280, height: 130)
         window.setFrameAutosaveName("FlapjackMain")
+    }
+
+    // PROTOTYPE — see FaceStylePrototype.swift.
+    func setChrome(_ color: NSColor) {
+        guard chrome != color else { return }
+        chrome = color
+        window?.backgroundColor = color
     }
 
     func setFloating(_ on: Bool) {

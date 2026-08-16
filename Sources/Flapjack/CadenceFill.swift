@@ -66,6 +66,17 @@ struct CadenceFillView: View {
     /// from the ordinary wipe (value creeps down) so each gets its own curve.
     @State private var lastFraction: Double = 1
 
+    // PROTOTYPE — see FaceStylePrototype.swift. The colourway supplies the fill
+    // and track (a dark amber inverts into a stain on a light ground), and its
+    // presence also means the frame has moved out to the window bezel, so this
+    // view stops drawing one. The inset it used to spend on the border is kept
+    // as a margin, which is what still lets the panel meet the bezel's inner
+    // edge exactly on the three window-facing sides.
+    @Environment(\.faceRenderStyle) private var protoStyle
+
+    private var colors: CadenceColorway { protoStyle?.theme.cadence ?? .shipped }
+    private var drawsOwnBorder: Bool { protoStyle == nil }
+
     var body: some View {
         GeometryReader { geo in
             let unit = FaceMetrics.unit(fitting: geo.size)
@@ -86,8 +97,10 @@ struct CadenceFillView: View {
                     track(fraction: fraction, size: inner, radius: innerRadius)
                         .padding(border)
 
-                    FaceBorderShape(inset: border, cornerRadius: innerRadius)
-                        .fill(Self.borderColor, style: FillStyle(eoFill: true))
+                    if drawsOwnBorder {
+                        FaceBorderShape(inset: border, cornerRadius: innerRadius)
+                            .fill(Self.borderColor, style: FillStyle(eoFill: true))
+                    }
                 }
                 .frame(width: geo.size.width, height: geo.size.height)
             }
@@ -100,7 +113,7 @@ struct CadenceFillView: View {
     private func track(fraction: Double, size: CGSize, radius: CGFloat) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(Self.panelColor.opacity(Self.trackOpacity))
+                .fill(colors.track)
 
             // The fill keeps its full-size rounded silhouette and is revealed
             // through a leading-anchored mask, so the corners stay soft while
@@ -108,7 +121,7 @@ struct CadenceFillView: View {
             // shape instead would round the trailing edge and read as a pill
             // sliding away rather than a wipe.
             RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(Self.panelColor)
+                .fill(colors.fill)
                 .mask(alignment: .leading) {
                     Rectangle()
                         .frame(width: size.width * fraction, height: size.height)

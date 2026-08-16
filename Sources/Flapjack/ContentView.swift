@@ -69,6 +69,11 @@ struct ContentView: View {
         .onChange(of: settings.alwaysOnTop) { _, on in
             windows.setFloating(on)
         }
+        // PROTOTYPE — see FaceStylePrototype.swift. Applied at the window root
+        // rather than at the face: the colourway now reaches the cadence
+        // backdrop, the events panel and the divider too, and the bezel has to
+        // wrap all of them.
+        .faceStylePrototypeShell()
     }
 
     private func columnWidth(in size: CGSize) -> CGFloat {

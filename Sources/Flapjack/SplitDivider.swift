@@ -32,6 +32,10 @@ struct SplitDivider: View {
     @State private var hovering = false
     @State private var dragging = false
 
+    // PROTOTYPE — see FaceStylePrototype.swift. White-on-black hairline and
+    // grip vanish entirely on a pastel ground; the colourway supplies both.
+    @Environment(\.eventsColors) private var colors
+
     private var thickness: CGFloat { EventsPanelMetrics.dividerThickness }
     private var active: Bool { hovering || dragging }
 
@@ -71,7 +75,7 @@ struct SplitDivider: View {
 
     private var line: some View {
         Rectangle()
-            .fill(Color.white.opacity(active ? 0.30 : 0.10))
+            .fill(active ? colors.seamActive : colors.seam)
             .frame(width: seam == .vertical ? 1 : nil,
                    height: seam == .vertical ? nil : 1)
             .animation(.easeOut(duration: 0.12), value: active)
@@ -83,7 +87,7 @@ struct SplitDivider: View {
         let dot: CGFloat = 2.5
         let dots = ForEach(0..<3, id: \.self) { _ in
             Circle()
-                .fill(Color.white.opacity(active ? 0.70 : 0.30))
+                .fill(active ? colors.gripActive : colors.grip)
                 .frame(width: dot, height: dot)
         }
 

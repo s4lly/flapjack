@@ -118,15 +118,16 @@ enum EventTimeFormat {
     }()
 }
 
-/// Dim-on-black palette matching the clock face's greys.
-private enum EventsPalette {
-    static let axis = Color(white: 0.44)
-    static let title = Color(white: 0.90)
-    static let hint = Color(white: 0.42)
-    static let gridline = Color.white.opacity(0.08)
-    static let hourGridline = Color.white.opacity(0.13)
-    /// The "now" marker. Deliberately the one saturated thing in the panel.
-    static let now = Color(red: 1.0, green: 0.27, blue: 0.23)
+// PROTOTYPE — see FaceStylePrototype.swift. The panel's colours used to be a
+// dim-on-black constant table (`EventsPalette`); they now come from the
+// window's colourway, because on a light ground every one of them has to invert
+// — text goes dark, the rules go from white-over-black to black-over-tint, and
+// the chip wash has to carry more of the calendar's own colour to have an edge
+// at all. `EventsColorway.shipped` is that original table, and is what the
+// flag-off path still reads.
+extension EnvironmentValues {
+    /// The colourway the panel (and the divider) should draw with.
+    var eventsColors: EventsColorway { faceRenderStyle?.theme.events ?? .shipped }
 }
 
 // MARK: - Timeline geometry
@@ -263,6 +264,9 @@ private struct EventBlock: View {
     let size: CGSize
     let isPast: Bool
 
+    // PROTOTYPE — see FaceStylePrototype.swift.
+    @Environment(\.eventsColors) private var colors
+
     private var showsTime: Bool {
         orientation == .vertical ? size.height >= unit * 2.6
                                  : size.height >= unit * 2.4 && size.width >= unit * 5
@@ -274,7 +278,7 @@ private struct EventBlock: View {
     var body: some View {
         ZStack(alignment: orientation == .vertical ? .leading : .topLeading) {
             RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(event.calendarColor.opacity(0.24))
+                .fill(event.calendarColor.opacity(colors.chipWash))
 
             // Leading rail: vertical layouts get it down the left, horizontal
             // ones along the top, so it never eats the (scarce) width.
@@ -286,14 +290,14 @@ private struct EventBlock: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(event.title)
                     .font(.system(size: unit * 0.86, weight: .medium))
-                    .foregroundStyle(EventsPalette.title)
+                    .foregroundStyle(colors.title)
                     .lineLimit(1)
                     .truncationMode(.tail)
 
                 if showsTime {
                     Text(EventTimeFormat.range(for: event))
                         .font(.system(size: unit * 0.72, design: .monospaced))
-                        .foregroundStyle(EventsPalette.axis)
+                        .foregroundStyle(colors.axis)
                         .lineLimit(1)
                 }
             }
@@ -321,6 +325,9 @@ private struct AllDayStrip: View {
     /// Cross-axis room the strip may take (width when horizontal).
     let extent: CGFloat
 
+    // PROTOTYPE — see FaceStylePrototype.swift.
+    @Environment(\.eventsColors) private var colors
+
     /// Two is all that fits before the timeline itself gets squeezed.
     private var shown: ArraySlice<EventItem> { events.prefix(2) }
 
@@ -335,7 +342,7 @@ private struct AllDayStrip: View {
                         .frame(width: max(2, unit * 0.18))
                     Text(event.title)
                         .font(.system(size: unit * 0.8, weight: .medium))
-                        .foregroundStyle(EventsPalette.title)
+                        .foregroundStyle(colors.title)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
@@ -346,7 +353,7 @@ private struct AllDayStrip: View {
                        alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: unit * 0.3, style: .continuous)
-                        .fill(event.calendarColor.opacity(0.18))
+                        .fill(event.calendarColor.opacity(colors.allDayWash))
                 )
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("All day, \(event.title)")
@@ -355,7 +362,7 @@ private struct AllDayStrip: View {
             if overflow > 0 {
                 Text("+\(overflow) more")
                     .font(.system(size: unit * 0.7))
-                    .foregroundStyle(EventsPalette.hint)
+                    .foregroundStyle(colors.hint)
             }
         }
         .frame(width: orientation == .horizontal ? extent : nil, alignment: .leading)
@@ -379,6 +386,9 @@ private struct DayTimelineView: View {
     let laneExtent: CGFloat
     /// Shown centred over the axis when the day holds nothing at all.
     let emptyNote: String?
+
+    // PROTOTYPE — see FaceStylePrototype.swift.
+    @Environment(\.eventsColors) private var colors
 
     private static let nowAnchorID = "flapjack.timeline.now"
 
@@ -416,7 +426,7 @@ private struct DayTimelineView: View {
                 if let emptyNote {
                     Text(emptyNote)
                         .font(.system(size: unit * 0.86))
-                        .foregroundStyle(EventsPalette.hint)
+                        .foregroundStyle(colors.hint)
                         .lineLimit(1)
                         .allowsHitTesting(false)
                 }
@@ -468,7 +478,7 @@ private struct DayTimelineView: View {
             let along = CGFloat(hour) * pointsPerHour
 
             Rectangle()
-                .fill(hour % 6 == 0 ? EventsPalette.hourGridline : EventsPalette.gridline)
+                .fill(hour % 6 == 0 ? colors.hourGridline : colors.gridline)
                 .frame(width: orientation.size(along: 1, across: laneExtent).width,
                        height: orientation.size(along: 1, across: laneExtent).height)
                 .position(orientation.point(along: along, across: rulerExtent + laneExtent / 2))
@@ -477,7 +487,7 @@ private struct DayTimelineView: View {
                 Text(EventTimeFormat.hourLabel(timeline.hourMark(hour)))
                     .font(.system(size: unit * 0.68, weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(EventsPalette.axis)
+                    .foregroundStyle(colors.axis)
                     .lineLimit(1)
                     .fixedSize()
                     .frame(width: orientation == .vertical ? rulerExtent - unit * 0.4 : nil,
@@ -534,16 +544,16 @@ private struct DayTimelineView: View {
 
         return ZStack(alignment: .topLeading) {
             Rectangle()
-                .fill(EventsPalette.now)
+                .fill(colors.now)
                 .frame(width: line.width, height: line.height)
                 .position(orientation.point(along: along, across: rulerExtent + laneExtent / 2))
 
             Circle()
-                .fill(EventsPalette.now)
+                .fill(colors.now)
                 .frame(width: bead, height: bead)
                 .position(orientation.point(along: along, across: rulerExtent))
         }
-        .shadow(color: EventsPalette.now.opacity(0.55), radius: 3)
+        .shadow(color: colors.now.opacity(0.55), radius: 3)
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Now")
@@ -602,11 +612,14 @@ private struct EventsMessage: View {
     let unit: CGFloat
     let alignment: TextAlignment
 
+    // PROTOTYPE — see FaceStylePrototype.swift.
+    @Environment(\.eventsColors) private var colors
+
     var body: some View {
         if let message = state.message {
             Text(message)
                 .font(.system(size: state.messageIsLong ? unit * 0.82 : unit))
-                .foregroundStyle(EventsPalette.hint)
+                .foregroundStyle(colors.hint)
                 .multilineTextAlignment(alignment)
                 .lineLimit(state.messageIsLong ? 4 : 1)
                 .fixedSize(horizontal: false, vertical: true)
@@ -624,6 +637,9 @@ struct EventsColumn: View {
     /// Current minute, from the same tick that drives the face.
     let now: Date
 
+    // PROTOTYPE — see FaceStylePrototype.swift.
+    @Environment(\.eventsColors) private var colors
+
     private var unit: CGFloat { min(max(width * 0.072, 10), 15) }
     /// Wide enough for the longest hour label ("12 AM") plus air.
     private var gutter: CGFloat { unit * 3.1 }
@@ -638,7 +654,7 @@ struct EventsColumn: View {
                     AllDayStrip(events: allDay, unit: unit, orientation: .vertical, extent: width)
                         .padding(.leading, gutter - unit * 0.4)
                         .padding(.trailing, unit * 0.9)
-                    Divider().overlay(EventsPalette.gridline)
+                    Divider().overlay(colors.gridline)
                 }
 
                 DayTimelineView(
