@@ -157,7 +157,7 @@ struct SettingsView: View {
         ))
         .disabled(settings.announceMode == .off)
 
-        Text("A lit panel behind the clock that shrinks as the next announcement approaches.")
+        Text("A lit plane behind the whole window that drains away as the next announcement approaches.")
             .font(.caption)
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -168,6 +168,17 @@ struct SettingsView: View {
             get: { settings.alwaysOnTop },
             set: { settings.setAlwaysOnTop($0) }
         ))
+
+        Picker("Appearance:", selection: settings.appearanceBinding) {
+            ForEach(Appearance.allCases) { appearance in
+                Text(appearance.label).tag(appearance)
+            }
+        }
+
+        Text("Auto follows your Mac: Charcoal in dark mode, Peach in light mode.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - Speech

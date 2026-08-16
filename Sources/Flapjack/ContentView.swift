@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ContentView: View {
@@ -6,9 +7,32 @@ struct ContentView: View {
     @EnvironmentObject private var windows: WindowController
     @EnvironmentObject private var events: EventsService
 
+    /// The system's light/dark setting, which is what the Auto appearance
+    /// follows. Nothing in the app forces an appearance on its own windows, so
+    /// this tracks System Settings live and reruns `body` when it flips.
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var theme: Theme {
+        settings.appearance.colorway(for: colorScheme).theme
+    }
+
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // Deliberately *without* `.ignoresSafeArea()`. A hidden-title-bar
+            // window still keeps a title-bar-height safe area at the top, and a
+            // ground painted straight through it covers the window's own
+            // background colour — which is the bezel's top run. Held back to the
+            // safe area, the strip shows the bezel instead and the frame closes.
+            theme.ground.color
+
+            // The countdown is the window's own backdrop rather than a panel in
+            // the face's region: one plane draining behind the face, the divider
+            // and the events panel alike. It takes the same safe-area treatment
+            // as the ground, so the bezel — an overlay that *does* ignore the
+            // safe area — still closes over its edges on all four sides.
+            if showsCadenceFill {
+                CadenceFillView(schedule: settings.cadenceSchedule)
+            }
 
             // The panel claims its space first; whatever is left (less the
             // divider gutter) is handed to the face, which sizes its own slim
@@ -61,9 +85,17 @@ struct ContentView: View {
             .frame(width: 0, height: 0)
         }
         .frame(minWidth: 280, minHeight: 130)
+        .environment(\.theme, theme)
+        .overlay(WindowBezel(color: theme.bezel))
         .onChange(of: settings.alwaysOnTop) { _, on in
             windows.setFloating(on)
         }
+        // The window's background colour is the bezel's top run, and it lives in
+        // AppKit rather than in the view tree — so it has to be pushed, both at
+        // launch and whenever the resolved colourway changes (the user picking
+        // another appearance, or the system flipping light/dark under Auto).
+        .onAppear { windows.setChrome(NSColor(theme.bezel)) }
+        .onChange(of: theme) { _, new in windows.setChrome(NSColor(new.bezel)) }
     }
 
     private func columnWidth(in size: CGSize) -> CGFloat {
@@ -76,16 +108,10 @@ struct ContentView: View {
                                         fraction: settings.eventsFraction(for: .below))
     }
 
-    /// The face, over the cadence countdown backdrop. The backdrop is a sibling
-    /// inside the face's own region, so it never spills onto the events panel or
-    /// the divider — whatever space the face is handed is exactly what it fills.
+    /// Just the clock. The countdown lives at the window root above, since it is
+    /// the window's backdrop rather than the face's.
     private var face: some View {
-        ZStack {
-            if showsCadenceFill {
-                CadenceFillView(schedule: settings.cadenceSchedule)
-            }
-            ClockFaceView(face: ClockFace(date: engine.now))
-        }
+        ClockFaceView(face: ClockFace(date: engine.now))
     }
 
     /// Nothing to count down to with the cadence off, and the user can switch
@@ -105,7 +131,7 @@ struct ContentView: View {
                 Image(systemName: "pin.fill")
                     .rotationEffect(.degrees(45))
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color(white: 0.62))
+                    .foregroundStyle(theme.accent)
                     .padding(8)
                     .help("Always on top (⌘1)")
                     .accessibilityLabel("Always on top")

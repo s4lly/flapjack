@@ -40,8 +40,10 @@ struct ClockFace: Equatable {
 /// its own content aspect, so the choice between them is simply "whichever draws
 /// the digits bigger in this region".
 struct FaceMetrics {
-    /// Width of a single flip card (see `HalfCard`).
-    var cardWidth: CGFloat = 0.64
+    /// Width of a single flip card (see `HalfCard`). Taken from the card's own
+    /// form, so the space the layout reserves and the space the card draws in
+    /// can't drift apart.
+    var cardWidth: CGFloat = CardForm.cardWidth
     /// Horizontal gap between adjacent elements.
     var gap: CGFloat = 0.08
     var colonWidth: CGFloat = 0.26
@@ -112,17 +114,19 @@ struct MeridiemBadge: View {
     let text: String
     let unit: CGFloat
 
+    @Environment(\.theme) private var theme
+
     var body: some View {
         Text(text)
             .font(.system(size: max(9, unit * 0.13), weight: .semibold, design: .rounded))
-            .foregroundStyle(Color(white: 0.58))
+            .foregroundStyle(theme.badgeText)
             .lineLimit(1)
             .fixedSize()
             .padding(.horizontal, unit * 0.038)
             .padding(.vertical, unit * 0.014)
             .background(
                 RoundedRectangle(cornerRadius: unit * 0.032, style: .continuous)
-                    .fill(Color.white.opacity(0.07))
+                    .fill(theme.badgeFill)
             )
             // Inset from the card's rounded corner; the digit's glyph sits well
             // above this, so the badge never overlaps it.
@@ -138,6 +142,8 @@ struct MeridiemBadge: View {
 /// window resizes or the events divider is dragged, with or without the panel.
 struct ClockFaceView: View {
     let face: ClockFace
+
+    @Environment(\.theme) private var theme
 
     var body: some View {
         GeometryReader { geo in
@@ -165,7 +171,7 @@ struct ClockFaceView: View {
 
             Text(":")
                 .font(.system(size: unit * 0.42, weight: .bold, design: .monospaced))
-                .foregroundStyle(Color(white: 0.55))
+                .foregroundStyle(theme.accent)
                 .frame(width: unit * metrics.colonWidth)
 
             minutes(unit: unit)
@@ -188,7 +194,7 @@ struct ClockFaceView: View {
             Circle().frame(width: unit * 0.055, height: unit * 0.055)
             Circle().frame(width: unit * 0.055, height: unit * 0.055)
         }
-        .foregroundStyle(Color(white: 0.55))
+        .foregroundStyle(theme.accent)
         .frame(height: unit * metrics.rowGap)
     }
 

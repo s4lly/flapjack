@@ -4,7 +4,7 @@ A lightweight macOS flip clock.
 
 ## Features
 
-- Classic split-flap clock showing hours and minutes, prominently.
+- Classic split-flap clock showing hours and minutes, prominently — one card per digit, cut across the middle by the hinge's split line, with a flip animation when a digit changes.
 - Freely resizable window — the clock scales to fit, and rearranges itself to `HH` stacked over `MM` (dot separator between) whenever that makes the digits bigger than `HH:MM` across.
 - **⌘1** (main row or numeric keypad) toggles always-on-top (window floats above all other windows).
 - Time announcements on a configurable cadence:
@@ -22,7 +22,8 @@ A lightweight macOS flip clock.
   - macOS asks your permission to control each player the first time — that prompt is why the setting starts off rather than on. If you say no by mistake, Settings shows a button straight to **System Settings → Privacy & Security → Automation**.
   - It only works for players macOS can script, which in practice means Spotify and Music. Audio from a browser tab, a game or a video call **cannot** be lowered — macOS has no per-app volume control for third-party apps, and no way to duck other audio the way iOS does.
   - Paused players are left alone, and a player that isn't already running is never launched.
-- A **cadence countdown fill** behind the clock: a warm amber panel that fills the face when the time is announced and then drains right to left as the next announcement approaches, so the wait is visible at a glance. Only shown when a cadence is set; switch it off with "Show cadence fill" in Settings.
+- A **cadence countdown drain** behind the whole window: a lit plane that fills edge to edge when the time is announced and then drains right to left as the next announcement approaches — under the clock, the divider and the calendar alike — so the wait is visible at a glance. Only shown when a cadence is set; switch it off with "Show cadence fill" in Settings.
+- **Three colourways — Charcoal, Slate and Peach** — picked with **Appearance** in Settings. A colourway is the whole app: ground, cards, digits, countdown, the window's bezel and the calendar beside it. **Auto** (the default) follows your Mac — Charcoal in dark mode, Peach in light mode — and switches live the moment you change it. Slate is a quieter dark scheme for a desk at night, chosen rather than inherited.
 - Today's remaining calendar events beside the clock (EventKit — any account synced to macOS Calendar). **⌘2** (main row or numeric keypad) cycles the panel off → right column → below the clock; the clock rescales to the space that's left. Calendar access is asked for only when you first turn the panel on.
 - **Spacebar** speaks the current time on demand (app focused) — works even with the cadence set to off. Also in the menu as "Speak Time".
 

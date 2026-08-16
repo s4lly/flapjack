@@ -22,6 +22,13 @@ struct WindowAccessor: NSViewRepresentable {
 final class WindowController: ObservableObject {
     private weak var window: NSWindow?
 
+    /// The window's background colour, which a transparent title bar shows
+    /// through — so it is also the top edge of the app's bezel, and has to be
+    /// the colourway's bezel colour. Held as state rather than set once because
+    /// the window may not exist yet when the colourway is first resolved, and
+    /// because the colourway can change while the app runs.
+    private var chrome: NSColor?
+
     func configure(_ window: NSWindow) {
         guard self.window !== window else { return }
         self.window = window
@@ -35,9 +42,16 @@ final class WindowController: ObservableObject {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
-        window.backgroundColor = NSColor.black
+        window.backgroundColor = chrome ?? NSColor.black
         window.minSize = NSSize(width: 280, height: 130)
         window.setFrameAutosaveName("FlapjackMain")
+    }
+
+    /// Paints the title-bar strip — the bezel's top run.
+    func setChrome(_ color: NSColor) {
+        guard chrome != color else { return }
+        chrome = color
+        window?.backgroundColor = color
     }
 
     func setFloating(_ on: Bool) {

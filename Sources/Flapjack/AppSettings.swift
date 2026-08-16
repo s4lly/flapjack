@@ -139,6 +139,13 @@ final class AppSettings: ObservableObject {
     @AppStorage("voiceIdentifier") private var voiceIdentifierRaw = "" {
         willSet { objectWillChange.send() }
     }
+    /// The colourway, or the rule that picks one. Defaults to `auto`, which
+    /// follows the system's light/dark setting — a desk clock that stays black
+    /// while everything around it goes light is the one thing this setting
+    /// exists to stop.
+    @AppStorage("appearance") private var appearanceRaw = Appearance.auto.rawValue {
+        willSet { objectWillChange.send() }
+    }
 
     // MARK: - Reads
 
@@ -167,6 +174,10 @@ final class AppSettings: ObservableObject {
     }
 
     var duckOtherAudio: Bool { duckOtherAudioRaw }
+
+    var appearance: Appearance {
+        Appearance(rawValue: appearanceRaw) ?? .auto
+    }
 
     /// The announcement timetable implied by the current settings. Recomputed on
     /// read, so a cadence change retargets the countdown on the very next tick.
@@ -235,6 +246,10 @@ final class AppSettings: ObservableObject {
         voiceIdentifierRaw = identifier
     }
 
+    func setAppearance(_ appearance: Appearance) {
+        appearanceRaw = appearance.rawValue
+    }
+
     func toggleAlwaysOnTop() {
         setAlwaysOnTop(!alwaysOnTopRaw)
     }
@@ -285,6 +300,10 @@ final class AppSettings: ObservableObject {
 
     var voiceIdentifierBinding: Binding<String> {
         Binding(get: { self.voiceIdentifier }, set: { self.setVoiceIdentifier($0) })
+    }
+
+    var appearanceBinding: Binding<Appearance> {
+        Binding(get: { self.appearance }, set: { self.setAppearance($0) })
     }
 
     // MARK: - Derived behaviour
