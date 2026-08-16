@@ -307,6 +307,12 @@ private struct EventBlock: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        // PROTOTYPE — see FaceStylePrototype.swift. Outside the prototype this
+        // opacity is zero and the overlay costs nothing.
+        .overlay(
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(event.calendarColor.opacity(colors.chipEdge), lineWidth: 1)
+        )
         .frame(width: size.width, height: size.height)
         // Finished events stay on the timeline (the day is the point) but step
         // back so the eye lands on what is still ahead.
@@ -354,6 +360,12 @@ private struct AllDayStrip: View {
                 .background(
                     RoundedRectangle(cornerRadius: unit * 0.3, style: .continuous)
                         .fill(event.calendarColor.opacity(colors.allDayWash))
+                        // PROTOTYPE — see FaceStylePrototype.swift.
+                        .overlay(
+                            RoundedRectangle(cornerRadius: unit * 0.3, style: .continuous)
+                                .strokeBorder(event.calendarColor.opacity(colors.chipEdge),
+                                              lineWidth: 1)
+                        )
                 )
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("All day, \(event.title)")

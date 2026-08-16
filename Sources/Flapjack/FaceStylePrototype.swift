@@ -1,31 +1,50 @@
-// PROTOTYPE — throwaway. Round 2.
+// PROTOTYPE — throwaway. Round 3.
 //
-// Round 1 answered the form question: **Classic flip** is the card, so the style
-// axis is now locked to it by default (still switchable with ←/→ for
-// comparison). What is open is colour, and specifically what a *light* face
-// costs: the cadence backdrop was authored as "dark amber lit against black",
-// which on a pastel ground inverts into a dirty smudge, and the events panel was
-// authored as "dim greys on black", which on a pastel ground is unreadable.
+// Round 1 fixed the form (**Classic flip**). Round 2 made a palette a complete
+// COLOURWAY rather than just a face, and moved the frame out to a window bezel.
+// Round 3 answers what is left, which is what the countdown *is*:
 //
-// So a palette here is no longer just the face. It is a COMPLETE colourway:
+// 1. **The drain is no longer an object.** Round 2 still drew it as a rounded
+//    panel with a faint track behind it: a pill inside the bezel, with wedges of
+//    ground showing outside its corners. Both cues are gone. The lit fill is now
+//    a SQUARE-cornered plane that starts at the bezel's inner edge, and the
+//    drained part is simply the ground — there is no "unlit track" tint, because
+//    the ground already IS the empty state. What remains is the one thing that
+//    was ever doing the work: a vertical cut sweeping right to left, easing back
+//    to full when the clock speaks.
 //
-//   ground · cards · digits · colon/badge · cadence (fill/track/frame) ·
+// 2. **The plane is the whole app, not the face region.** With the calendar open
+//    the fill sweeps under it too — one continuous plane behind the face, the
+//    divider and the events panel alike, bounded only by the bezel. That is why
+//    every events colour has to survive being drawn over *two* backgrounds now
+//    (see `EventsColorway`), and why the fill lives at the window root in
+//    `ContentView` rather than inside the face's own `ZStack`.
+//
+// 3. **Dark pastels.** The five round-2 colourways are all daylight schemes; a
+//    clock that sits on a desk at night wants the same colour identity at low
+//    output. D1–D3 are mid-dark (not black) grounds with soft light digits and a
+//    lit tint dim enough to read as "warm lamp" rather than "screen on".
+//
+// A colourway is therefore:
+//
+//   ground · cards · digits · colon/badge · cadence (fill/frame) ·
 //   events (rules, chips, text, now-line) · divider
 //
 // Two axes, switchable live:
-//   ←/→  FACE STYLE   1 Current · 2 Classic · 3 Minimal        (default Classic)
+//   ←/→  FACE STYLE   Classic · Minimal                        (default Classic)
 //   ↑/↓  COLOURWAY    0 Charcoal · P1 Sage · P2 Lavender · P3 Peach · P4 Powder
+//                     D1 Deep sage · D2 Deep indigo · D3 Deep slate
 //
 // The colourway is injected at the *window root* rather than at the face, so the
 // cadence fill, the events panel, the divider and the window's own chrome all
 // read the same values. With no value in the environment (the flag off) every
 // view falls back to its shipped body, byte for byte.
 //
-// The frame rework (see `WindowFrameOverlay`): the cadence border used to hug
-// the face region, which put a bar down the seam between the face and the
-// calendar. It is now a window bezel — the same colour as the title-bar strip,
-// wrapped around all four window edges, around everything. The cadence fill and
-// track stay in the face region as before.
+// The frame (see `WindowFrameOverlay`): the cadence border used to hug the face
+// region, which put a bar down the seam between the face and the calendar. It is
+// now a window bezel — the same colour as the title-bar strip, wrapped around
+// all four window edges, around everything, and now also the boundary the
+// full-bleed fill runs up to.
 //
 // Run with: open dist/Flapjack.app --args -prototypeStyle 1
 // No polish, no tests, no accessibility work beyond what falls out for free.
@@ -35,32 +54,23 @@ import SwiftUI
 
 // MARK: - Axis 1: face style
 
+/// Round 2 kept "Current" (the shipped card) on the cycle as a control. It has
+/// lost every comparison it was in, so the axis is down to the two candidates
+/// and `classic` is first — which also makes the default the zero value.
 enum FaceStyleVariant: Int, CaseIterable {
-    case current, classic, minimal
+    case classic = 0
+    case minimal = 1
 
     var label: String {
         switch self {
-        case .current: return "1 Current"
         case .classic: return "Classic"
-        case .minimal: return "3 Minimal"
+        case .minimal: return "Minimal"
         }
     }
 
     /// Everything about the card's *form* — the palette supplies the colours.
     var spec: FaceStyleSpec {
         switch self {
-        case .current:
-            // The shipped look, restated in the prototype's own vocabulary:
-            // both halves fully rounded (so the hinge corners are round too),
-            // the gap merely the VStack's sliver of ground, shadow on.
-            return FaceStyleSpec(cornerRadius: 0.06,
-                                 squareHingeCorners: false,
-                                 hingeGap: 0.012,
-                                 paintsHinge: false,
-                                 topShades: (0.030, -0.030),
-                                 bottomShades: (-0.040, 0.010),
-                                 pins: false,
-                                 shadow: true)
         case .classic:
             // The researched look. Bigger radius (references run ~8–10% of card
             // height), SQUARE corners either side of the hinge so the two halves
@@ -127,41 +137,44 @@ struct Shade {
     }
 }
 
-/// The countdown backdrop's three colours.
+/// The countdown backdrop's two colours.
 ///
-/// The invariant that has to hold in every palette is **lit vs drained**: the
-/// fill must read as a panel with the light on and the uncovered track as the
-/// same panel with it off. On black that means the fill is *brighter* than the
-/// ground. On a pastel ground the same instinct — a dark amber — inverts it into
-/// a stain, so every light colourway derives its fill as a saturated warm tint
-/// clearly LIGHTER than its ground, and its track as that same tint most of the
-/// way back down to the ground.
+/// Round 2 had three: fill, track, frame. The track is gone — with the panel
+/// full-bleed and square there is nothing left for a track to bound, and the
+/// ground reads as "drained" perfectly well on its own once the pill silhouette
+/// that made it look like *outside* the countdown is removed. So the invariant
+/// is now just **lit vs ground**, and it has to hold in both directions:
 ///
-/// The ordering each light palette keeps is
-/// `digits ≪ ground < track < fill < cards`: the cards stay the lightest thing
-/// on screen so the face never sinks into its own backdrop, and the digits stay
-/// the darkest so they dominate regardless of what is behind them.
+/// - on a light ground, a dark amber inverts into a stain, so every light
+///   colourway lifts a saturated warm tint clearly ABOVE its ground;
+/// - on a dark ground the lift is the same sign but much smaller, because the
+///   plane now covers the whole window and a bright one at 3 a.m. is a lamp
+///   pointed at the user. D1–D3 lift by roughly 0.10–0.13 in linear terms:
+///   unmistakable as a moving edge, invisible as glare.
+///
+/// The ordering every palette keeps is `digits ≪ ground < fill < cards` (light)
+/// or `digits ≫ cards > fill > ground` (dark): the cards stay furthest from the
+/// ground so the face never sinks into its own backdrop, and the digits stay
+/// furthest from everything so they dominate regardless of what is behind them.
 struct CadenceColorway {
-    /// The lit panel.
+    /// The lit plane.
     var fill: Color
-    /// The panel unlit — the fill's full extent, so a half-drained wipe still
-    /// says where "full" was.
-    var track: Color
     /// The window bezel. Also the window's `backgroundColor`, which is what the
     /// title-bar strip shows, so the strip and the perimeter are one thing.
     var frame: Color
-
-    /// The shipped values, for the flag-off path and the charcoal comparison.
-    static let shipped = CadenceColorway(
-        fill: Color(red: 0.30, green: 0.215, blue: 0.055),
-        track: Color(red: 0.30, green: 0.215, blue: 0.055).opacity(0.32),
-        frame: Color(red: 0.72, green: 0.52, blue: 0.13).opacity(0.75))
 }
 
 /// The events panel's colours. On black these are dim greys and a hot red; on a
 /// pastel ground every one of them has to flip sense — text goes dark, the
 /// rules go from white-over-black to black-over-tint, and the now-line has to be
 /// deepened or it screams.
+///
+/// Round 3 adds a second constraint on every one of them: the fill now runs
+/// under the panel, so each colour is drawn over the ground on one side of the
+/// moving edge and over the lit tint on the other, *within a single glance*. The
+/// recipes below are therefore tuned for the harder of the two backgrounds and
+/// checked against the other — which mostly cost the chip washes, which had been
+/// set just high enough to have an edge against the ground alone.
 struct EventsColorway {
     /// Event titles and all-day labels.
     var title: Color
@@ -179,6 +192,17 @@ struct EventsColorway {
     var chipWash: Double
     /// The all-day pill, always a touch quieter than a timeline chip.
     var allDayWash: Double
+    /// Opacity of a hairline outline in the calendar's own colour around each
+    /// chip. Zero on black, where a wash already has all the edge it needs.
+    ///
+    /// It exists for the full-bleed drain. A wash is a *relationship* to what is
+    /// behind it, and there are now two things behind it: a chip tuned to have
+    /// an edge against the ground loses most of it over the lit fill, and one
+    /// tuned for the fill is a slab against the ground. Worse, a chip wide
+    /// enough to straddle the moving cut showed both at once and appeared to
+    /// change size as the edge crossed it. An outline is the same colour on both
+    /// sides, so the chip keeps one shape whatever it is lying on.
+    var chipEdge: Double
     /// The split divider's hairline and grip, idle and active.
     var seam: Color
     var seamActive: Color
@@ -194,6 +218,7 @@ struct EventsColorway {
         now: Color(red: 1.0, green: 0.27, blue: 0.23),
         chipWash: 0.24,
         allDayWash: 0.18,
+        chipEdge: 0,
         seam: Color.white.opacity(0.10),
         seamActive: Color.white.opacity(0.30),
         grip: Color.white.opacity(0.30),
@@ -203,25 +228,56 @@ struct EventsColorway {
     /// four pastels, so they are the parameters and everything else is shared —
     /// which is what stops one scheme from quietly drifting more legible than
     /// its siblings.
+    ///
+    /// The washes went up from round 2's 0.38/0.30: over the lit fill — which is
+    /// lighter *and* warmer than the ground — a chip at 0.38 lost most of its
+    /// edge, so a chip that straddled the moving cut appeared to change size.
+    /// The rules went the same way, since a black hairline at 0.13 over a bright
+    /// cream fill is nearly nothing.
     static func light(ink: Color, muted: Color, now: Color) -> EventsColorway {
         EventsColorway(
             title: ink,
             axis: muted,
             hint: muted,
-            gridline: Color.black.opacity(0.13),
-            hourGridline: Color.black.opacity(0.28),
+            gridline: Color.black.opacity(0.17),
+            hourGridline: Color.black.opacity(0.34),
             now: now,
-            chipWash: 0.38,
-            allDayWash: 0.30,
-            seam: Color.black.opacity(0.16),
-            seamActive: Color.black.opacity(0.42),
-            grip: Color.black.opacity(0.34),
-            gripActive: Color.black.opacity(0.62))
+            chipWash: 0.46,
+            allDayWash: 0.38,
+            chipEdge: 0.85,
+            seam: Color.black.opacity(0.22),
+            seamActive: Color.black.opacity(0.48),
+            grip: Color.black.opacity(0.40),
+            gripActive: Color.black.opacity(0.66))
+    }
+
+    /// The dark-ground recipe: the same shape as `light` with every polarity
+    /// flipped, but *not* the shipped black table. The shipped values assume a
+    /// pure-black ground and go as dim as 0.42 white; over a 20 %-lightness
+    /// ground they disappear, and over the lit tint on top of it they disappear
+    /// twice. Everything here is lifted to clear the brighter of the two
+    /// backgrounds it can land on.
+    static func dark(ink: Color, muted: Color, now: Color) -> EventsColorway {
+        EventsColorway(
+            title: ink,
+            axis: muted,
+            hint: muted,
+            gridline: Color.white.opacity(0.13),
+            hourGridline: Color.white.opacity(0.26),
+            now: now,
+            chipWash: 0.42,
+            allDayWash: 0.34,
+            chipEdge: 0.80,
+            seam: Color.white.opacity(0.18),
+            seamActive: Color.white.opacity(0.42),
+            grip: Color.white.opacity(0.34),
+            gripActive: Color.white.opacity(0.72))
     }
 }
 
 enum FacePalette: Int, CaseIterable {
     case charcoal, sage, lavender, peach, powder
+    case deepSage, deepIndigo, deepSlate
 
     var label: String {
         switch self {
@@ -230,6 +286,9 @@ enum FacePalette: Int, CaseIterable {
         case .lavender: return "P2 Lavender"
         case .peach: return "P3 Peach"
         case .powder: return "P4 Powder"
+        case .deepSage: return "D1 Deep sage"
+        case .deepIndigo: return "D2 Deep indigo"
+        case .deepSlate: return "D3 Deep slate"
         }
     }
 
@@ -248,7 +307,6 @@ enum FacePalette: Int, CaseIterable {
                 shadeScale: 1.0,
                 cadence: CadenceColorway(
                     fill: Color(red: 0.30, green: 0.215, blue: 0.055),
-                    track: Color(red: 0.096, green: 0.069, blue: 0.018),
                     // NOT the shipped border colour. That was a 4pt hairline
                     // of 0.75-alpha amber; the bezel now includes the whole
                     // title-bar band, and the same gold at that size is a gold
@@ -272,7 +330,6 @@ enum FacePalette: Int, CaseIterable {
                 shadeScale: 0.42,
                 cadence: CadenceColorway(
                     fill: Color(red: 0.933, green: 0.898, blue: 0.706),
-                    track: Color(red: 0.796, green: 0.812, blue: 0.702),
                     frame: Color(red: 0.196, green: 0.259, blue: 0.204)),
                 events: .light(ink: Color(red: 0.129, green: 0.176, blue: 0.141),
                                muted: Color(red: 0.318, green: 0.384, blue: 0.322),
@@ -294,7 +351,6 @@ enum FacePalette: Int, CaseIterable {
                     // ground a yellow fill reads acid, and the complement is
                     // already doing the "different temperature" work.
                     fill: Color(red: 0.957, green: 0.882, blue: 0.784),
-                    track: Color(red: 0.820, green: 0.792, blue: 0.843),
                     frame: Color(red: 0.216, green: 0.196, blue: 0.298)),
                 events: .light(ink: Color(red: 0.153, green: 0.129, blue: 0.220),
                                // A shade darker than the badge/accent grey the
@@ -318,7 +374,6 @@ enum FacePalette: Int, CaseIterable {
                 shadeScale: 0.42,
                 cadence: CadenceColorway(
                     fill: Color(red: 1.000, green: 0.937, blue: 0.647),
-                    track: Color(red: 0.937, green: 0.827, blue: 0.686),
                     // Deep cocoa: the only bezel dark enough to hold a ground
                     // this light without reading as a second peach.
                     frame: Color(red: 0.259, green: 0.161, blue: 0.118)),
@@ -342,11 +397,104 @@ enum FacePalette: Int, CaseIterable {
                 shadeScale: 0.42,
                 cadence: CadenceColorway(
                     fill: Color(red: 0.965, green: 0.902, blue: 0.714),
-                    track: Color(red: 0.847, green: 0.847, blue: 0.784),
                     frame: Color(red: 0.129, green: 0.216, blue: 0.286)),
                 events: .light(ink: Color(red: 0.098, green: 0.161, blue: 0.212),
                                muted: Color(red: 0.278, green: 0.392, blue: 0.467),
                                now: Color(red: 0.729, green: 0.161, blue: 0.145)))
+
+        // The three deep schemes below are the pastels' night shift, and they
+        // are built by the same recipe rather than by "darken everything":
+        //
+        //   ground   ~19–21 % lightness, desaturated — mid-dark, deliberately
+        //            not black, so the window still reads as a coloured object
+        //            in a dark room rather than as a hole in the desktop;
+        //   card     ~0.07 above the ground, which is the smallest step that
+        //            still separates a card from its backdrop once the lit
+        //            plane is behind it;
+        //   digit    soft light (~0.83), never 1.0 — white digits this size on
+        //            a dark ground bloom, and bloom is exactly the thing a
+        //            night scheme exists to avoid;
+        //   cadence  a warm tint ~0.11 above the ground: enough that the moving
+        //            cut is obvious at a glance, dim enough that a full plane
+        //            is not a light source;
+        //   frame    ~0.09, below the ground, so the bezel still reads as a
+        //            case around the thing rather than a border on it.
+        //
+        // `shadeScale` is 0.72 rather than the pastels' 0.42: a dark card has
+        // room for a real gradient before it turns plastic, and needs one, since
+        // it has less contrast with its surroundings to do the shaping.
+        case .deepSage:
+            return FaceTheme(
+                ground: Shade(0.165, 0.200, 0.173),
+                // Lifted past the nominal 0.07 step: D1's lit tint is the
+                // closest of the three to its own card, and with the plane
+                // behind the whole face a card only 0.07 up read as a smudge
+                // rather than as an object sitting on the light.
+                card: Shade(0.259, 0.298, 0.267),
+                digit: Color(red: 0.827, green: 0.859, blue: 0.824),
+                hinge: Color(red: 0.094, green: 0.118, blue: 0.098),
+                accent: Color(red: 0.549, green: 0.612, blue: 0.553),
+                badgeText: Color(red: 0.573, green: 0.635, blue: 0.576),
+                badgeFill: Color.white.opacity(0.08),
+                shadow: Color.black.opacity(0.45),
+                shadeScale: 0.72,
+                cadence: CadenceColorway(
+                    // Warm olive, not amber: on a green ground a pure amber at
+                    // this luminance reads as a stain rather than as light.
+                    fill: Color(red: 0.278, green: 0.290, blue: 0.208),
+                    frame: Color(red: 0.075, green: 0.094, blue: 0.078)),
+                events: .dark(ink: Color(red: 0.855, green: 0.882, blue: 0.851),
+                              muted: Color(red: 0.588, green: 0.647, blue: 0.592),
+                              // Coral rather than the shipped scarlet: full-hot
+                              // red is the one colour that survives a dark
+                              // scheme's dimming and then dominates it.
+                              now: Color(red: 0.902, green: 0.376, blue: 0.325)))
+
+        case .deepIndigo:
+            return FaceTheme(
+                ground: Shade(0.176, 0.169, 0.235),
+                card: Shade(0.251, 0.243, 0.322),
+                digit: Color(red: 0.843, green: 0.835, blue: 0.894),
+                hinge: Color(red: 0.106, green: 0.102, blue: 0.153),
+                accent: Color(red: 0.573, green: 0.561, blue: 0.663),
+                badgeText: Color(red: 0.596, green: 0.584, blue: 0.686),
+                badgeFill: Color.white.opacity(0.08),
+                shadow: Color.black.opacity(0.45),
+                shadeScale: 0.72,
+                cadence: CadenceColorway(
+                    // The one place a genuinely warm tint works unaltered: the
+                    // ground is cool and violet, so a dim ember separates on
+                    // temperature and needs almost no lift in luminance.
+                    fill: Color(red: 0.322, green: 0.267, blue: 0.239),
+                    frame: Color(red: 0.086, green: 0.082, blue: 0.129)),
+                events: .dark(ink: Color(red: 0.867, green: 0.859, blue: 0.914),
+                              muted: Color(red: 0.612, green: 0.600, blue: 0.702),
+                              now: Color(red: 0.918, green: 0.373, blue: 0.400)))
+
+        case .deepSlate:
+            return FaceTheme(
+                ground: Shade(0.149, 0.184, 0.216),
+                card: Shade(0.220, 0.259, 0.298),
+                digit: Color(red: 0.824, green: 0.859, blue: 0.886),
+                hinge: Color(red: 0.086, green: 0.110, blue: 0.137),
+                accent: Color(red: 0.541, green: 0.608, blue: 0.659),
+                badgeText: Color(red: 0.565, green: 0.631, blue: 0.682),
+                badgeFill: Color.white.opacity(0.08),
+                shadow: Color.black.opacity(0.45),
+                shadeScale: 0.72,
+                cadence: CadenceColorway(
+                    // Bronze, red-dominant. The obvious choice for a blue
+                    // ground is the same warm olive D1 uses, and it works — but
+                    // it works so well that D1 and D3 became the same scheme the
+                    // moment the plane was lit, since the fill covers most of
+                    // the window and the ground barely shows. Pushing the red
+                    // above the green keeps the two apart in the state they are
+                    // in most of the time.
+                    fill: Color(red: 0.318, green: 0.271, blue: 0.200),
+                    frame: Color(red: 0.071, green: 0.094, blue: 0.118)),
+                events: .dark(ink: Color(red: 0.851, green: 0.882, blue: 0.906),
+                              muted: Color(red: 0.580, green: 0.647, blue: 0.698),
+                              now: Color(red: 0.914, green: 0.392, blue: 0.353)))
         }
     }
 }

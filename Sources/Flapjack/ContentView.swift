@@ -11,6 +11,18 @@ struct ContentView: View {
             // PROTOTYPE — see FaceStylePrototype.swift.
             if FaceStyleProtoFlag.isEnabled {
                 FaceStyleProtoGround()
+
+                // PROTOTYPE — see FaceStylePrototype.swift. The countdown has
+                // moved out of the face region and become the window's own
+                // backdrop: one square-cornered plane draining behind the face,
+                // the divider and the events panel alike. It sits directly on
+                // the ground and under everything else, and takes the same
+                // safe-area treatment as the ground, so the bezel (an overlay
+                // that does ignore the safe area) still closes over its edges
+                // on all four sides.
+                if showsCadenceFill {
+                    CadenceFillView(schedule: settings.cadenceSchedule)
+                }
             } else {
                 Color.black.ignoresSafeArea()
             }
@@ -89,9 +101,14 @@ struct ContentView: View {
     /// The face, over the cadence countdown backdrop. The backdrop is a sibling
     /// inside the face's own region, so it never spills onto the events panel or
     /// the divider — whatever space the face is handed is exactly what it fills.
+    ///
+    /// PROTOTYPE — the round-3 colourway inverts that: the backdrop is mounted
+    /// at the window root instead (see above) and spilling onto the panel is the
+    /// whole point, so the face's own copy is suppressed rather than drawn
+    /// twice.
     private var face: some View {
         ZStack {
-            if showsCadenceFill {
+            if showsCadenceFill && !FaceStyleProtoFlag.isEnabled {
                 CadenceFillView(schedule: settings.cadenceSchedule)
             }
             // PROTOTYPE — see FaceStylePrototype.swift.

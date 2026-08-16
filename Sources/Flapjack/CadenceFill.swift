@@ -23,6 +23,10 @@ import SwiftUI
 ///
 /// The wipe uncovers the ground from the *right*, so the surviving colour hugs
 /// the leading edge and vanishes off the left at the boundary.
+///
+/// PROTOTYPE — under the round-3 colourway none of the three layers survives:
+/// see `plane(fraction:size:color:)`. The paragraphs above describe the shipped
+/// (flag-off) body only.
 struct CadenceFillView: View {
     let schedule: CadenceSchedule
 
@@ -66,73 +70,88 @@ struct CadenceFillView: View {
     /// from the ordinary wipe (value creeps down) so each gets its own curve.
     @State private var lastFraction: Double = 1
 
-    // PROTOTYPE — see FaceStylePrototype.swift. The colourway supplies the fill
-    // and track (a dark amber inverts into a stain on a light ground), and its
-    // presence also means the frame has moved out to the window bezel, so this
-    // view stops drawing one. The inset it used to spend on the border is kept
-    // as a margin, which is what still lets the panel meet the bezel's inner
-    // edge exactly on the three window-facing sides.
+    // PROTOTYPE — see FaceStylePrototype.swift. Its presence changes three
+    // things at once, which is why it is a single branch rather than three
+    // knobs: the colourway supplies the fill (a dark amber inverts into a stain
+    // on a light ground), the frame has moved out to the window bezel so this
+    // view stops drawing one, and the panel has stopped being a *panel* — no
+    // rounding, no track, and the caller mounts it across the whole window
+    // instead of inside the face region.
     @Environment(\.faceRenderStyle) private var protoStyle
-
-    private var colors: CadenceColorway { protoStyle?.theme.cadence ?? .shipped }
-    private var drawsOwnBorder: Bool { protoStyle == nil }
 
     var body: some View {
         GeometryReader { geo in
-            let unit = FaceMetrics.unit(fitting: geo.size)
-            let border = Self.borderWidth(unit: unit, in: geo.size)
-            let radius = unit * Self.cornerRadiusUnits
-            // The border's inner edge and the track's silhouette are the same
-            // curve: a rounded rect inset by the border width, its radius
-            // reduced by the same amount. Deriving both from these two numbers
-            // is what guarantees they meet exactly, with no black hairline
-            // between the frame and what it frames.
-            let innerRadius = max(0, radius - border)
-            let inner = CGSize(width: max(0, geo.size.width - 2 * border),
-                               height: max(0, geo.size.height - 2 * border))
-
             TimelineView(.periodic(from: .now, by: Self.creepDuration)) { context in
                 let fraction = schedule.fractionRemaining(at: context.date) ?? 0
-                ZStack {
-                    track(fraction: fraction, size: inner, radius: innerRadius)
-                        .padding(border)
 
-                    if drawsOwnBorder {
-                        FaceBorderShape(inset: border, cornerRadius: innerRadius)
-                            .fill(Self.borderColor, style: FillStyle(eoFill: true))
-                    }
+                if let cadence = protoStyle?.theme.cadence {
+                    plane(fraction: fraction, size: geo.size, color: cadence.fill)
+                } else {
+                    framedTrack(fraction: fraction, size: geo.size)
                 }
-                .frame(width: geo.size.width, height: geo.size.height)
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
-    /// The faint full extent with the bright fill draining inside it.
-    private func track(fraction: Double, size: CGSize, radius: CGFloat) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(colors.track)
+    /// PROTOTYPE — the full-bleed drain: one square-cornered plane of the lit
+    /// colour, drained from the right, with nothing behind it but the ground.
+    ///
+    /// There is no track and no silhouette because both were saying the same
+    /// wrong thing — that the countdown is an *object sitting on* the ground.
+    /// A rounded panel leaves wedges of ground outside its corners, which reads
+    /// as a pill; a track tint says the empty part of the countdown is a
+    /// different surface from the rest of the window. Square and edge-to-edge,
+    /// the only thing that moves is the boundary between lit and unlit, which
+    /// is the only thing that ever meant anything.
+    private func plane(fraction: Double, size: CGSize, color: Color) -> some View {
+        Rectangle()
+            .fill(color)
+            .mask(alignment: .leading) {
+                Rectangle().frame(width: size.width * fraction, height: size.height)
+            }
+            .drainAnimation(fraction: fraction, lastFraction: $lastFraction)
+            .frame(width: size.width, height: size.height)
+    }
 
-            // The fill keeps its full-size rounded silhouette and is revealed
-            // through a leading-anchored mask, so the corners stay soft while
-            // the moving edge itself is a clean vertical cut — shrinking the
-            // shape instead would round the trailing edge and read as a pill
-            // sliding away rather than a wipe.
-            RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(colors.fill)
-                .mask(alignment: .leading) {
-                    Rectangle()
-                        .frame(width: size.width * fraction, height: size.height)
-                }
-                .animation(
-                    fraction > lastFraction
-                        ? .easeOut(duration: Self.refillDuration)
-                        : .linear(duration: Self.creepDuration),
-                    value: fraction
-                )
-                .onChange(of: fraction) { _, new in lastFraction = new }
+    /// The shipped look: an amber frame, the track at a third strength, and the
+    /// fill draining inside it — all rounded, all inside the face region.
+    private func framedTrack(fraction: Double, size: CGSize) -> some View {
+        let unit = FaceMetrics.unit(fitting: size)
+        let border = Self.borderWidth(unit: unit, in: size)
+        let radius = unit * Self.cornerRadiusUnits
+        // The border's inner edge and the track's silhouette are the same
+        // curve: a rounded rect inset by the border width, its radius reduced
+        // by the same amount. Deriving both from these two numbers is what
+        // guarantees they meet exactly, with no black hairline between the
+        // frame and what it frames.
+        let innerRadius = max(0, radius - border)
+        let inner = CGSize(width: max(0, size.width - 2 * border),
+                           height: max(0, size.height - 2 * border))
+
+        return ZStack {
+            ZStack {
+                RoundedRectangle(cornerRadius: innerRadius, style: .continuous)
+                    .fill(Self.panelColor.opacity(Self.trackOpacity))
+
+                // The fill keeps its full-size rounded silhouette and is
+                // revealed through a leading-anchored mask, so the corners stay
+                // soft while the moving edge itself is a clean vertical cut —
+                // shrinking the shape instead would round the trailing edge and
+                // read as a pill sliding away rather than a wipe.
+                RoundedRectangle(cornerRadius: innerRadius, style: .continuous)
+                    .fill(Self.panelColor)
+                    .mask(alignment: .leading) {
+                        Rectangle().frame(width: inner.width * fraction, height: inner.height)
+                    }
+                    .drainAnimation(fraction: fraction, lastFraction: $lastFraction)
+            }
+            .frame(width: inner.width, height: inner.height)
+            .padding(border)
+
+            FaceBorderShape(inset: border, cornerRadius: innerRadius)
+                .fill(Self.borderColor, style: FillStyle(eoFill: true))
         }
         .frame(width: size.width, height: size.height)
     }
@@ -142,6 +161,26 @@ struct CadenceFillView: View {
     static func borderWidth(unit: CGFloat, in size: CGSize) -> CGFloat {
         let scaled = min(max(unit * borderWidthUnits, minBorderWidth), maxBorderWidth)
         return min(scaled, min(size.width, size.height) / 4)
+    }
+}
+
+private extension View {
+    /// The two curves the drain moves on, chosen by direction: a linear creep
+    /// that exactly matches the tick (so each step glides into the next second's
+    /// value instead of stuttering), and a long ease for the refill (so the
+    /// sweep back to full reads as a deliberate swell, not a flash).
+    ///
+    /// The previous fraction is the only way to tell the two apart, so it is
+    /// threaded through rather than recomputed.
+    func drainAnimation(fraction: Double, lastFraction: Binding<Double>) -> some View {
+        self
+            .animation(
+                fraction > lastFraction.wrappedValue
+                    ? .easeOut(duration: CadenceFillView.refillDuration)
+                    : .linear(duration: CadenceFillView.creepDuration),
+                value: fraction
+            )
+            .onChange(of: fraction) { _, new in lastFraction.wrappedValue = new }
     }
 }
 
