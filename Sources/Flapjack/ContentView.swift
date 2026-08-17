@@ -31,7 +31,8 @@ struct ContentView: View {
             // as the ground, so the bezel — an overlay that *does* ignore the
             // safe area — still closes over its edges on all four sides.
             if showsCadenceFill {
-                CadenceFillView(schedule: settings.cadenceSchedule)
+                CadenceFillView(schedule: settings.cadenceSchedule,
+                                isVisible: windows.isVisible)
             }
 
             // The panel claims its space first; whatever is left (less the

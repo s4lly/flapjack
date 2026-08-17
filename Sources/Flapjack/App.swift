@@ -80,6 +80,15 @@ struct FlapjackApp: App {
         engine.onResync = { date in
             MainActor.assumeIsolated { refreshEvents(at: date) }
         }
+        // Occlusion is the other half of the App Nap story: a window that has
+        // been hidden for an hour comes back with a face to correct, and the
+        // correction has to land before the user reads it.
+        windows.onVisible = { visible in
+            MainActor.assumeIsolated {
+                guard visible else { return }
+                engine.windowBecameVisible()
+            }
+        }
         engine.start()
         // A panel restored as visible needs access before its first fetch;
         // requestAccessIfNeeded is a no-op once the user has decided.
